@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+
+{% block title %}TestRail Case Report{% endblock %}
+
+{% block head_block %}
+	<link href="https://cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet" />
+	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.css"/>
+{% endblock %}
+
+{% block script_block %}
+	<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.js"></script>
+	<script type="text/javascript">
+
+		function resetProjectDropDown()
+		{
+			$('#projectID option:selected').each(function(){ $(this).prop('selected', false) })
+			$('#projectID').multiselect('refresh')
+			$('#projectID').multiselect('enable')
+
+			$('#projectLabelLink').bind('click', false)
+			$('#projectLabelLink').prop('href', '')
+		}
+
+		// default disable=true
+		function resetSuiteDropDown(disable)
+		{
+			$('#suiteID option:selected').each(function(){ $(this).prop('selected', false) })
+			$('#suiteID').multiselect('refresh')
+
+			if (typeof disable === 'undefined')
+			{
+				disable = true
+			}
+			$('#suiteID').multiselect(disable ? 'disable' : 'enable')
+		}
+
+		function resetAutomationTypeDropDown(disable)
+		{
+			$('#automationTypeID option:selected').each(function() { $(this).prop('selected', false) })
+			$('#automationTypeID').multiselect('refresh')
+
+			if (typeof disable === 'undefined')
+			{
+				disable = true
+			}
+			$('#automationTypeID').multiselect(disable ? 'disable' : 'enable')
+		}
+
+		function resetTable()
+		{
+			$('#caseTable').prop('hidden', true)
+			if (typeof window.dtable !== 'undefined')
+			{
+				$('#caseTable').DataTable().destroy()
+			}
+		}
+
+		/* Clears all selected fields from the form.
+		 * Called when #resetButton is clicked.
+		 */
+		function clearAll()
+		{
+			resetProjectDropDown()
+			resetSuiteDropDown()
+			resetAutomationTypeDropDown()
+
+			$('#generateButton').prop('disabled', true)
+			$('#exportButton').prop('disabled', true)
+
+			resetTable()
+		}
+
+
+		/* Receives suites from server, based on selected #projectID.
+		 * Populates #suiteID dropdown menu with the corresponding suites.
+		 */
+		function onProjectSelected(response, result, responseDataObject)
+		{
+			var suites_list = []
+			var receivedData = responseDataObject.responseJSON
+			if (receivedData.hasOwnProperty('suites'))
+			{				
+				suites_list = receivedData['suites']
+			} 
+			$('#suiteID').multiselect('dataprovider', suites_list)
+			$('#suiteID').multiselect('enable')
+		}
+
+
+		/* Sends a request to the server for the suites of project with #projectID.
+		 * Enables/disables #suiteID dropdown menu accordingly.
+		 */
+		function processProjectsDropDownChange(option, element, checked)
+		{
+			resetSuiteDropDown()
+			resetAutomationTypeDropDown()
+			// projectSelected should be project ID
+			var projectSelected = $(option).val()
+			var noneSelected = projectSelected.toUpperCase() == 'NONE'
+
+			$('#projectLabelLink').prop('href', linkToProject(projectSelected))
+			$('#projectLabelLink').unbind('click', false)
+
+			$('#suiteID').prop('disabled', noneSelected)
+
+			if (!noneSelected)
+			{
+				$('#projectID').prop('selected', !noneSelected)
+				$.ajax({
+					url: '/testrail_report',
+					type: 'GET',
+					dataType: 'json',
+					data: {'project_id': projectSelected},
+					success: onProjectSelected
+				})
+			}
+		}
+
+
+		/* Populates #automationTypeID dropdown menu with the available automation types
+		 * from the cases in the selected suites.
+		 */
+		function onSuitesSelected(response, result, responseDataObject)
+		{
+			var automation_types_list = []
+			var receivedData = responseDataObject.responseJSON
+
+			if (receivedData.hasOwnProperty('automation_types'))
+			{
+				var received_auto_types = receivedData['automation_types']
+				for (var key in received_auto_types)
+				{
+					// key is the int automation type (-1, 1-5)
+					automation_types_list.push({
+						'label': received_auto_types[key],
+						'value': key
+					})
+				}
+			}
+			$('#automationTypeID').multiselect('dataprovider', automation_types_list)
+			$('#automationTypeID').multiselect('enable')
+		}
+
+
+		/* Retrieves and processes cases after suites are selected
+		 * and #generateButton is clicked.
+		 * Calls onCasesReceived upon successful retrieval.
+		 */
+		function getCasesFromSuites()
+		{
+			var projectSelected = $('#projectID').val()
+			var suitesSelected = $('#suiteID').val()
+			$.ajax({
+				url: '/testrail_report',
+				type: 'GET',
+				dataType: 'json',
+				data: {'suite_ids': suitesSelected},
+				success: onSuitesSelected
+			})
+		}
+
+		/* Returns a string URL linking to the Project's overview page on TestRail */
+		function linkToProject(projectID)
+		{
+			var baseURL = 'https://gdcqatestrail01/testrail/index.php?/projects/overview/'
+			return baseURL + projectID
+		}
+
+		/* Returns a string URL linking to the test case's page on TestRail */
+		function linkToCase(caseID)
+		{
+			var baseURL = 'https://gdcqatestrail01/testrail/index.php?/cases/view/'
+			return baseURL + caseID
+		}
+
+
+		/* Dynamically constructs #caseTable with results from AJAX call.
+		 * cases is a list of dicts (representing cases)
+		 *    e.g., [{'id': xxxx, 'title': 'test case title', ...}]
+		 */
+		function populateCaseTable(cases)
+		{
+			// get test case categories from response
+			// set up table headers
+			// ---------------------------------------------------------
+			// |               |         |           |    validation   |
+			// | serial number | case ID | test type | passed | failed |
+			var table_array = ['<thead>',
+							   '<tr>',
+							   '<th rowspan="2" style="text-align:center">Sr. No.</th>',
+							   '<th rowspan="2" style="text-align:center">Test Case ID</th>',
+							   '<th rowspan="2" style="text-align:center">Automation Type</th>',
+							   '<th colspan="2" style="text-align:center">Validation</th>',
+							   '</tr>',
+							   '<tr>',
+							   '<th>Passed</th>',
+							   '<th>Failed</th>',
+							   '</tr>',
+							   '</thead>',
+							   '<tbody>']
+
+			// add each case in its own row
+			for (var i = 0; i < cases.length; ++i)
+			{
+				// serial number (counter)
+				table_array.push('<tr>')
+				table_array.push('<td style="text-align:center">' + (i + 1) + '</td>')
+
+				// header is each individual test case category
+				for (var header in cases[i])
+				{
+					var value = cases[i][header]
+					switch (header)
+					{
+						// possibilities: {'id', 'custom_automation_type', 'Passed', 'Failed'}
+						case 'id':
+							// hyperlink to case
+							table_array.push('<td>')
+							table_array.push('<a target="_blank" href="' + linkToCase(value) + '">')
+							table_array.push('<div align="center" style="height:100%;width:100%">')
+							table_array.push(value)
+							table_array.push('</div>')
+							table_array.push('</a>')
+							table_array.push('</td>')
+							break
+
+						case 'Passed':
+						case 'Failed':
+							// value: [string]
+							table_array.push('<td>')
+							table_array.push('<ul>')
+
+							// populate bullet point list for Passed/Failed
+							for (var b = 0; b < value.length; ++b)
+							{
+								table_array.push('<li>' + value[b] + '\n</li>')
+							}
+							table_array.push('</ul>')
+							table_array.push('</td>')
+							break
+
+						default:
+							table_array.push('<td style="text-align:center">' + value + '</td>')
+					}
+				}
+				table_array.push('</tr>')
+			}
+			table_array.push('</tbody>')
+			$('#caseTable').html(table_array.join(''))
+
+			window.dtable = $('#caseTable').DataTable({
+				paging: true,
+				pagingType: 'full_numbers'
+			})
+			$('#generateButton').prop('disabled', false)
+		}
+
+
+		/* Processes received suites from server.
+		 * Populates #caseTable with results.
+		 * responseDataObject.responseJSON format:
+		 *   {'cases': [dict]}
+		 */
+		function onCasesReceived(response, result, responseDataObject)
+		{
+			var receivedData = responseDataObject.responseJSON
+
+			if (receivedData.hasOwnProperty('cases'))
+			{
+				var cases_list = receivedData['cases']
+				populateCaseTable(cases_list)
+			}
+			$('#caseTable').prop('hidden', false)
+			$('#exportButton').prop('disabled', false)
+		}
+
+
+		/* Retrieves and processes cases after suites are selected
+		 * and #generateButton is clicked.
+		 * Calls onCasesReceived upon successful retrieval.
+		 * Disables #generateButton until table has been populated.
+		 */
+		function generateCases()
+		{
+			$('#generateButton').prop('disabled', true)
+			resetTable()
+			var testTypesSelected = $('#automationTypeID').val()
+
+			if (testTypesSelected != null)
+			{
+				var projectSelected = $('#projectID').val()
+				var suitesSelected = $('#suiteID').val()
+				$.ajax({
+					url: '/testrail_report',
+					type: 'GET',
+					dataType: 'json',
+					data: {'automation_types': testTypesSelected},
+					success: onCasesReceived
+				})
+			}
+		}
+
+
+		/* Opens /testrail_report/download/xxx.xlsx,
+		 * downloading the report generated.
+		 */
+		function exportToExcel()
+		{
+			window.open("{% url 'download' %}", '_blank')
+		}
+
+
+		/* Enables #generateButton if any suites are checked.
+		 */
+		function processSuitesDropDownChange(option, element, checked)
+		{
+			resetAutomationTypeDropDown()
+			var isSelected = $('#suiteID').val() != null
+
+			// #suiteID field is marked as selected if any suites are selected
+			$('#suiteID').prop('selected', isSelected)
+
+			// retrieve cases
+			getCasesFromSuites()
+		}
+
+		/* Processes #automationTypeID dropdown menu when test types are selected.
+		 * Enables #generateButton when selections are made,
+		 * which, when clicked, calls generateCases().
+		 */
+		function processAutomationTypeDropDownChange(option, element, checked)
+		{
+			var testTypesSelected = $('#automationTypeID').val()
+			var isSelected = testTypesSelected != null
+
+			$('#automationTypeID').prop('selected', isSelected)
+			$('#generateButton').prop('disabled', !isSelected)
+		}
+
+
+		/* "main" */
+		$(document).ready(function()
+		{
+			$('#projectLabelLink').bind('click', false)
+			$('#projectID').multiselect({
+				onChange: processProjectsDropDownChange
+			})
+
+			$('#suiteID').multiselect({
+				includeSelectAllOption: true,
+				enableCollapsibleOptGroups: true,
+				enableFiltering: true,
+				enableClickableOptGroups: true,
+				enableCaseInsensitiveFiltering: true,
+				allSelectedText: '(All)',
+				onChange: processSuitesDropDownChange
+			})
+
+			$('#automationTypeID').multiselect({
+				includeSelectAllOption: true,
+				enableCollapsibleOptGroups: true,
+				enableFiltering: true,
+				enableCaseInsensitiveFiltering: true,
+				allSelectedText: '(All)',
+				onChange: processAutomationTypeDropDownChange
+			})
+
+			$('#resetButton').on('reset', clearAll)
+		})
+
+	</script>
+{% endblock %}
+
+
+{% block container_block %}
+	<div class="container-fluid">
+    	<div class="row">
+    		<div class="col-sm-3 col-md-1 sidebar">
+        		{% block side_block %}
+         			<!-- sidebar -->
+         		{% endblock %}
+         	</div>
+			
+        	<div class="col-sm-9 col-sm-offset-3 col-md-11 col-md-offset-1 main">
+        		{% block body_block %}
+         		<div>
+        			<form id="filter-form" class="form-horizontal" role="form">
+						{% block body_block_form_items %}
+							{% csrf_token %}
+
+							<!-- Project Dropdown Menu -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="projectID">
+									<a id="projectLabelLink" target="_blank" href="">
+										Project:
+									</a>
+								</label>
+								<div class="col-sm-10">
+									<select class="form-control" id="projectID" name="project" autofocus>
+										{% if projects %}
+												<option value="NONE">
+													None selected
+												</option>
+											{% for key, value in projects.items %}
+											<!-- key=project_id, value=project_name -->
+										    	<option value="{{ key }}">
+										    		{{ value }}
+										    	</option>
+										    {% endfor %}
+										{% endif %}
+						  			</select>
+								</div>
+							</div>
+
+							<!-- Suites Dropdown Menu -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="suiteID">
+									Test Suites:
+								</label>
+								<div class="col-sm-10">
+									<select class="form-control" id="suiteID" name="suite" multiple="multiple" disabled>
+										<option value="NONE">
+											None selected
+										</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Automation Type Dropdown Menu -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="automationTypeID">
+									Automation Type:
+								</label>
+								<div class="col-sm-10">
+									<select class="form-control" id="automationTypeID" name="automationType" multiple="multiple" disabled>
+										<option value="NONE">
+											None selected
+										</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Generate Button -->
+							<div class="form-group">
+								<div class="col-sm-offset-2 col-sm-10">
+									<button type="button"
+											id="generateButton"
+											class="btn btn-default btn-success"
+											onclick="generateCases()"
+											disabled>
+											<span class="glyphicon glyphicon-play">
+											</span>
+											Generate
+									</button>
+									
+									<!-- Reset Button -->
+									<button type="reset"
+											id="resetButton"
+											class="btn btn-default btn-warning"
+											onclick="clearAll()">
+											<span class="glyphicon glyphicon-refresh">
+											</span>
+											Reset
+									</button>
+
+									<!-- Export Excel Button -->
+									<button type="button"
+											id="exportButton"
+											class="btn btn-default btn-secondary"
+											onclick="exportToExcel()" 
+											disabled
+											>
+											<span class="glyphicon glyphicon-save-file"></span>
+											Export Excel
+									</button>
+								</div>
+							</div>
+
+							<!-- Cases Table -->
+							<div class="form-group">
+								<div class="col-sm-offset-2 col-sm-10">
+									<table id="caseTable" class="display nowrap" border="1" cellspacing="0" width="100%">
+									</table>
+								</div>
+							</div>
+
+						{% endblock %}
+					</form>
+				</div>
+				{% endblock %}
+			</div>
+        </div>
+    </div>
+{% endblock %}

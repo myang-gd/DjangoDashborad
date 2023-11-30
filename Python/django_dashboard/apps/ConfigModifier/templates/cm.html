@@ -1,0 +1,198 @@
+{% extends 'entry.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block title %}cm page{% endblock %}
+
+{% block panel %}
+
+<script type="text/javascript">
+		$(document).ready(function() {
+			 $('#id_action').prepend('<option value="NoneSelected" selected=true>--Select Action--</option>'); 
+			 
+			  $('#id_environment').multiselect({
+				    includeSelectAllOption: true,
+ 	            	enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+ 	             	allSelectedText: 'No more Environment(s) left ...',
+ 	             	onChange: checkInputs,
+ 	             	onSelectAll: checkInputs,
+			   })
+			  $('#id_action').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange:  function(option, element, checked){processActionDropDown(option, element, checked);checkInputs();},
+			   })
+	
+			 $('#id_suspend_form').submit(function(e) {
+				    e.preventDefault(); // don't submit multiple times
+				    dialogconfirm(this);
+				});
+		 });
+		function processActionDropDown(option, element, checked){
+			$("#btn_submit").attr("disabled", true);
+			
+			var data = {}
+
+			var optionSelected = $(option).val()
+			if (/^\d+$/.test(optionSelected)) 
+			{
+				data["action_id" ] =  optionSelected
+	 			$.ajax({
+    		        url : "/configModifier/ajax",
+    		        type : "GET",
+    		        dataType: "json",
+    		        data : data,
+    		        success: 
+    		        	function(response, result, responseDataObject) 
+    		        	{
+    		        		
+    		        		var environment_list_array = [];
+    			        	var jsonData = responseDataObject.responseJSON
+
+    			        	if(jsonData.hasOwnProperty('environment_list')){
+	    			        	for (var index in jsonData['environment_list'])
+	    			        	{
+	    			        		environment_list_array.push({
+		    			        			'label' : jsonData['environment_list'][index]['env_name'],
+		    			        			'value' : jsonData['environment_list'][index]['env_id'],
+		    			        	})
+	    			        	}
+    			        	}
+    						$("#id_environment").multiselect('dataprovider', environment_list_array)
+    						
+    		        	}
+				});
+			} else {
+				$("#id_environment").multiselect('dataprovider', [])    
+			} 
+		}
+
+		function checkInputs(){
+			var hasAcion = false
+			var hasEnv = false
+			var action =  $('#id_action :selected').val()			
+			if (/^\d+$/.test(action))
+				hasAcion = true
+			var environment =  $('#id_environment :selected').val()		
+			if (/^\d+$/.test(environment))
+				hasEnv = true
+				
+			if(hasAcion && hasEnv)
+				$("#btn_submit").attr("disabled", false);
+			else
+				$("#btn_submit").attr("disabled", true);
+		}
+		function dialogconfirm(form){
+			var envs = getSelectText('id_environment')
+			var action = $('#id_action :selected').text()
+			var msg = " Are you sure you want to " + action + " " + envs + "?"
+			$('#dialog-confirm p').text(msg)
+	        $( "#dialog-confirm" ).dialog({
+	            resizable: false,
+	            height: "auto",
+	            width: 400,
+	            modal: false,
+	            buttons: {
+	              Yes: function() { 
+	            	  $( this ).dialog( "close" );
+					  form.submit();
+	              },
+	              No: function() {
+	                  $( this ).dialog( "close" );
+	              }
+	            }
+	          });
+
+	   }
+		function getSelectText(id) {
+			 var re = ''
+			 $('#' + id + ' :selected').each(function(){
+				   if(re == '')
+					   re = $(this).text()
+				   else
+					   re += '/' + $(this).text()
+			 });
+			 return re;
+		}
+</script>
+   	  <div class="panel panel-default"  style="border:0;box-shadow:none;background-color:white;">
+        	  
+       	  <div class="panel-heading"   style="border:0;box-shadow:none;background-color:white;" >
+      	            <h1 style="display: inline; margin-right: 20px;"><label>Service Status:</label></h1>
+		    	<!-- <h1 style="display: inline"><span class="label label-warning" title="Config Modifier Service is Suspended on this environment">QA3</span></h1>
+		        <h1 style="display: inline"><span class="label success" title="Config Modifier Service is Running on this environment">QA4</span></h1>
+		        <h1 style="display: inline"><span class="label label-warning" title="Config Modifier Service is Suspended on this environment">QA5</span></h1>
+		        <h1 style="display: inline"><span class="label success" title="Config Modifier Service is Running on this environment">FW-QA</span></h1> -->
+		        {% for env_status in env_status_list%}
+		        	<h1 style="display: inline">
+		        		<span {% if env_status.suspend %}class="label label-warning"{% else %}class="label success"{% endif %} title="{{env_status.title}}">{{env_status.env_name}}</span>
+		        	</h1>
+				{% endfor %}
+	      </div>
+        	  
+      </div>
+       
+		 <div id="dialog-confirm" title="Confirmation" style="display: none;">
+			  <p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span>
+			         Are you sure you want to delete this feature?
+			  </p>
+		 </div>
+		<div id="suspend-action" title="Suspend environment" >
+		
+			 <div class="col-md-12">
+	            <div class="panel panel-default">
+	            	
+	                <div class="panel-body">
+	         
+                        <form id='id_suspend_form' action="{{ request.path }}" class="form-horizontal" method="post">
+						    {% csrf_token %}
+						  	{{ formset.management_form }}
+						  	 {% for field in form %}	        			
+							       <div class="form-group">
+							           <label class="col-sm-3 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+							           {% if field.is_hidden %} hidden {% endif %}>{{ field.label }}: </label>
+							           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+							           				{% elif field|field_type == 'CheckboxInput' %} col-sm-4 checkbox-align
+							           				{% elif field|field_type == 'Textarea' %} col-sm-10
+							           				{% elif field|field_type == 'Select' %} col-sm-4
+							           				{% else %} col-sm-5		           
+							           				{% endif %} 				           			           
+							           ">
+							           {% if field|field_type == 'CheckboxInput' %} 
+							               {{ field }}
+							           {% elif field|field_type == 'Textarea' %} 
+							               {{ field|attr:"style:width:700px;height:150px;" }}
+							           {% elif field|field_type == 'TextInput' %} 
+							           	   {{ field|attr:"class:form-control" }} 
+							           {% else  %} 
+										   {{ field|attr:"class:form-control"|attr:"style:width:auto;" }} 						   
+							           {% endif %} 	
+							           </div>
+							           {% if field.errors %}
+								           <span class="help-block col-sm-4">
+								                {% for error in  field.errors %}{{ error }}{% endfor %}
+								           </span>
+							           {% endif %}
+							       </div>
+										
+							{% endfor %}
+							    <div class="form-group">
+							        <div class="col-sm-offset-3 col-sm-10">
+							        	<button id='btn_submit' type="submit" class="btn btn-primary btn-sm" disabled>Submit</button>
+							    	</div>
+							    </div>						   						   
+						  </form>
+	                </div>
+	            </div>
+	        </div>
+	        	  
+	    </div>
+	   
+	  
+	        	  
+{% endblock %}
+
+
+
+

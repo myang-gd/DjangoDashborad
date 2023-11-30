@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+<!-- {% load common_tags %} -->
+{% load static %} 
+
+{% block header %}
+{% endblock header %}
+
+{% block title %}
+	DMWN Card Finder
+{% endblock title %}
+	
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+        <div class="col-lg-6" style='text-align:center'>
+			<h1>QA Environment DM / WN Card Finder</h1>
+			<br />
+			<br />
+			<br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm">
+				
+				<div class="h3 alert alert-warning" style="display:none;">
+<!-- 					<a class="close" data-dismiss="alert" href="#" aria-hidden="true">
+						&times;
+					</a> -->
+					<strong>Warning!&nbsp;</strong>
+					<span></span>
+				</div>
+				<div class="form-group">
+					
+					<select class="form-control" id="environment" autofocus>
+	  					<option>Environment</option>
+	  					<option>QA</option>
+	  					<option>PIE</option>
+	  				</select>
+	  				
+	  				<select class="form-control" id="customeracquisitiontype">
+	  					<option>Customer Acquisition Type</option>
+	  					<option>DirectMail</option>
+	  					<option>Winback</option>
+	  				</select><br>
+	  				<input type="checkbox" id="isemv" name="isemv" value="isemv" checked="checked">
+					<label for="isemv">Is EMV</label>		
+	  				<!--<input class="form-control" data-toggle="tooltip" title="Input BaaS Product Code here! E.g. 40002" data-placement="left" style="padding-left:17px" type="text" {% if value %} value = "{{ value }}" {% endif %} id="productcode" placeholder="Product Code">-->
+	  			</div>
+				<button class="btn btn-md btn-success btn-block" type="button" id="get_card_details" data-toggle="tooltip" title='Hit me to get Card Details!' data-placement="right">Get Card Details</button>
+			</form>
+			<br/> 
+			
+			<div id="card_details_result">
+			</div>
+			<div class="col-lg-3"></div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<script>
+var delay = 3000;
+var phone = '';
+var email = '';
+var loading_task = 0;
+
+$('#get_card_details').on('click', { url: "{% url 'get_card_details' %}", csrf_token: "{{ csrf_token }}" }, get_card_details)
+	
+function get_card_details(event)
+{
+	var is_dm = true;
+	var env = $('#environment').val();
+	var customer_acquisition_type = $('#customeracquisitiontype').val();
+	var is_emv = $('#isemv').prop('checked');
+	var json = {"env": env, "product_code": "40002", "customer_acquisition_type": customer_acquisition_type, "is_emv": is_emv};
+	if (customer_acquisition_type == "Winback")
+	{
+		is_dm = false;
+	}
+	
+	$('#card_details_result').empty();
+	
+	if(env == "Environment")
+	{
+		$('.h3.alert.alert-warning span').text("Please select Environment!");
+		$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+		$('.h3.alert.alert-warning').delay(delay).hide(0);
+	}
+	else
+	{
+		if(customer_acquisition_type == "Customer Acquisition Type")
+		{
+			$('.h3.alert.alert-warning span').text("Please select Customer Acquisition Type!");
+			$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+			$('.h3.alert.alert-warning').delay(delay).hide(0);
+		}
+	}
+
+	if((env != "Environment") && (customer_acquisition_type != "Customer Acquisition Type"))
+	{
+		phone = get_phone();
+		email = get_email();
+		ui_lock(1);
+		
+		$.ajax({
+			type: "POST",
+			url: event.data.url,
+			headers: {"X-CSRFToken": event.data.csrf_token},
+			data: json,
+			timeout: 10000,
+			success:  function(data) {
+				ui_unlock();
+				
+				if (data["Output"]["ResponseCode"] == "Failed")
+				{
+					$('.h3.alert.alert-warning span').text(data["Output"]["Error"]);
+					$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-warning').delay(delay).hide(0);
+					//window.location.reload();
+				}
+				else
+				{
+					var result_table = "";
+					if(is_dm)
+					{
+						result_table = "<h3>DM / WN Card Details</h3><table class='table table-striped table-hover table-bordered table-condensed'><tr><th>Card Proxy</th><td>"+ data["Output"]["CardProxy"] + "</td></tr><tr><th>PAN</th><td>"+ data["Output"]["PAN"] + "</td></tr><tr><th>CVV</th><td>"+ data["Output"]["CVV"] + "</td></tr><tr><th>Expiration</th><td>"+ data["Output"]["ExpDate"] + " (MM-DD-YYYY)</td></tr><tr><th>First Name</th><td>GordonMarketting</td></tr><tr><th>Last Name</th><td>James</td></tr><tr><th>Address</th><td>3465 E Foothill Blvd, Ste 100, Pasadena 91107</td></tr><tr><th>Phone</th><td>" + phone + "</td></tr><tr><th>Email</th><td>" + email + "</td></tr></table>";
+					} else
+					{
+						result_table = "<h3>DM / WN Card Details</h3><table class='table table-striped table-hover table-bordered table-condensed'><tr><th>Card Proxy</th><td>"+ data["Output"]["CardProxy"] + "</td></tr><tr><th>PAN</th><td>"+ data["Output"]["PAN"] + "</td></tr><tr><th>CVV</th><td>"+ data["Output"]["CVV"] + "</td></tr><tr><th>Expiration</th><td>"+ data["Output"]["ExpDate"] + " (MM-DD-YYYY)</td></tr><tr><th>SSN</th><td>"+ data["Output"]["SSN"] + "</td></tr><tr><th>Last4SSN</th><td>"+ data["Output"]["Last4SSN"] + "</td></tr><tr><th>DOB</th><td>"+ data["Output"]["DOB"] + " (MM-DD-YYYY)</td></tr><tr><th>First Name</th><td>GordonMarketting</td></tr><tr><th>Last Name</th><td>James</td></tr><tr><th>Address</th><td>3465 E Foothill Blvd, Ste 100, Pasadena 91107</td></tr><tr><th>Phone</th><td>" + phone + "</td></tr><tr><th>Email</th><td>" + email + "</td></tr></table>";
+					}
+					$('#card_details_result').append(result_table);
+				}
+			},
+			error:  function(data) {
+				$('.h3.alert.alert-warning span').text(data)
+				ui_unlock();
+
+			}
+		});
+	}
+}
+
+function get_phone()
+{
+	return '243' + (Math.floor(Math.random() * (9999999 - 1000000) + 1000000)).toString();
+}
+
+function get_email()
+{
+	return 'marketting+' + (Math.floor(Math.random() * (999 - 100) + 100)).toString() + '@gmail.com';
+}
+
+//Lock UI 
+function ui_lock(taskcount)
+{
+  	$('#please_wait_modal').modal('show');
+	loading_task = taskcount;
+}
+
+//Unlock UI
+function ui_unlock()
+{
+	loading_task = loading_task -1;
+	if(loading_task <= 0)
+	{
+		$('#please_wait_modal').modal('hide');
+	}
+}
+
+</script>
+
+{% endblock container_block %}
+

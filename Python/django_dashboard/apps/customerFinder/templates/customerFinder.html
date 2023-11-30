@@ -1,0 +1,453 @@
+{% extends "base.html" %} 
+{% block title %} Customer Finder
+{% endblock title %}
+
+<!-- {% load static from staticfiles %}  -->
+{% load static %} 
+{% block component_datatable %} 
+{% endblock component_datatable %} 
+{% block component_datatable_Initialize %}
+{% endblock component_datatable_Initialize %} 
+{% block head_block %}
+
+<script type="text/javascript"
+	src="{% static 'js/customer_finder.js' %}"></script>
+<link rel="stylesheet"
+	href="{% static 'plugins/vakata-jstree/themes/default/style.min.css' %}" />
+<script type="text/javascript"
+	src="{% static 'plugins/Split.js-master/split.min.js' %}"></script>
+
+
+{% endblock %} 
+{% block style %}
+
+<style>
+body {
+	padding-top: 70px; /* To fix nav bar overlapping content */
+	/*background-color: #E9F0D8;*/
+}
+
+.bg-green {
+	background-color: #99CB33; /* Green */
+	color: #ffffff;
+}
+
+.navbar {
+	background-color: #99CB33; /* Green */
+}
+
+.navbar li a,.navbar {
+	color: #fff;
+}
+
+.navbar-nav li a:hover,.navbar-nav li.active a {
+	color: #fff;
+	background-color: #EFA843; /* orange */
+}
+
+h1 {
+	color: #24922B;
+	text-align: center;
+}
+
+.gutter {
+	background-color: #eee;
+	background-repeat: no-repeat;
+	background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/vertical.png' %}");
+	cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/horizontal.png' %}");
+	cursor: row-resize;
+}
+
+.split.split-horizontal,.gutter.gutter-horizontal {
+	height: 100%;
+	float: left;
+}
+
+.table {
+	table-layout: fixed;
+}
+
+.td {
+	height: 20px;
+	overflow: hidden;
+}
+
+#ErrorDialog {
+	color: red;
+}
+
+#success_message {
+	color: green;
+}
+
+#page_detail tbody tr+tr td {
+	word-wrap: break-word;
+	word-break: break-all;
+}
+
+input[title]{
+    color: FA0606;
+}
+
+</style>
+
+{% endblock %} 
+{% block container_block %}
+
+<div class="container-fluid well"
+	style="width: auto; height: 925px; overflow-y: auto; overflow-x: auto;">
+
+	<h1>Customer Finder</h1>
+
+	<div class="split split-horizontal well" id="leftpanel"
+		style="width: calc(22% - 5px);">
+
+		<div class="form-group">
+			<label for="database">Select DataBase:</label>
+			<select type="database" class="form-control" id="database" placeholder="Select Database" autofocus>
+				<option value="-1"></option>
+				<option value="1">NEC</option>
+				<option value="3">AWSGBOS</option>
+				<option value="4">GSS</option>
+				
+			</select>
+			<label for="environment">Select Environment:</label>
+			<select type="environment" class="form-control" id="environment" placeholder="Select Environment"></select>
+			<label for="project">Select Project:</label>
+			<select type="project" class="form-control" id="project" placeholder="Select Project">
+				<option value="-1"></option>
+			</select> 
+			<label for="product">Product:</label> 
+			<input type="text" class="form-control" id="product" list="product_list"
+				onmouseover="present_productmap_tooltip(event);"
+				placeholder="Product Type or Product Code" data-toggle="tooltip"
+				data-placement="right"
+				title="Support multiple prodcut(e.g 'GDC30|NAS30' or '7502|7507')" />
+			<datalist id="product_list">
+				<option value="" />
+			</datalist>
+
+			<input type="checkbox" id="ips" />
+			<label for="ips">IPS</label> <br />
+			<label for="email">Email:</label>
+			<input type="email" class="form-control" id="email" placeholder="Email" data-toggle="tooltip" data-placement="right"
+				title="Load default Email Prefix by project automatically , you can modify by yourself." />
+		</div>
+
+		<div class="panel panel-primary" id="st_panel">
+			<div class="panel-heading">Customer Type:</div>
+			<div id="custtype_list" class="panel collapse in">
+				<div class="panel-body"
+					style="max-height: 400px; overflow-y: scroll;" id="listcusttype">
+				</div>
+
+			</div>
+
+		</div>
+	</div>
+
+	<div class="split split-horizontal well" id="middlepanel" height="100">
+
+		<form class="col-md-12 form-horizontal well" role="form">
+
+			<div class="col-md-12">
+
+				<div class="col-md-12 form-group">
+					<label for="selected_cust_type">Selected Customer Type:</label>
+					<div class="">
+						<input type="" class="form-control" id="selected_cust_type"
+							placeholder="Customer Type" />
+						<!-- <button class="btn btn-sm btn-primary" id="editCustType" type="button">Edit</button> -->
+					</div>
+				</div>
+
+				<div class="col-md-12 form-group">
+					<label for="extended_query">Extended Query:</label>
+					<div class="form-inline">
+						<select type="" class="form-control" id="where_condition"
+							autofocus>
+							<option value="-1"></option>
+							<option value="And">And</option>
+							<option value="Or">Or</option>
+						</select> <input type="" class="form-control" id="extended_query"
+							placeholder="Append Extended Query" />							
+						<input type="checkbox" id="isCheckPassword"> isCheckUserPassword</input>		
+					</div>
+
+
+				</div>
+
+				<div class="col-md-12 form-group">
+
+					<button type="button" class="btn btn-md btn-success"
+						id="showstatement" onclick="present_statement_with_parameters(event);">Show Statement</button>
+					<button type="button" class="btn btn-md btn-success" data-toggle="collapse" data-target="#variable_collapse"
+						id="showvariables">Show Variables</button>	
+						
+				</div>
+
+				<div class="col-md-12 form-group" id="statement_div">
+					</br> <label for="statement_lbl">Cucumber Statement:</label>											
+						<input type="text" class="form-control" id="statement"
+							placeholder="" />						
+				</div>
+				
+				<div id="variable_collapse" class="collapse" >
+					<label for="variables_label">Variables:</label>
+					<p style="color:#46b8da">Note: This can be used to get variable value with the variable name provide below in Cucumber, e.g. Variables.getVariable("FirstName")</p>
+					  <table class="table table-bordered">
+						  <thead>
+						  </thead>
+						    <tbody>
+						      <tr>
+						        <td>orgserialnbr</td>
+						        <td>serialnbr</td>
+						        <td>cardnumber</td>
+						       	<td>orgcardnumber</td>             
+						      </tr>
+						      <tr>
+						        <td>cardexpyear</td>
+						        <td>cardexpmonth</td>
+						        <td>cardexpyear_CRV_remove</td>
+						       	<td>cardexpmonth_CRV_remove</td>        
+						      </tr>
+						      <tr>
+						        <td>cardexpyear_p2p</td>
+						        <td>cardexpmonth_p2p</td>
+						        <td>customerkey</td>
+						       	<td>accountkey</td>
+						     </tr>
+						      <tr>
+						        <td>FirstName</td>
+						        <td>LastName</td>
+						        <td>firstname</td>
+						       	<td>lastname</td>
+						      </tr>
+						      <tr>
+						        <td>address1</td>
+						       	<td>address2</td>
+						        <td>city</td>
+						        <td>state</td>
+						      </tr>
+						       <tr>
+						        <td>last4ssn</td>
+						       	<td>email</td>
+						        <td>mobilephone</td>
+						        <td>homephone</td>
+						      </tr>
+						      <tr>
+						        <td>dob</td>
+						        <td>zipcode</td>
+						        <td>CustomerCreateDate</td>
+						       	<td>CustomerType</td>
+						      </tr>
+						      <tr>
+						        <td>CustomerInfo</td>
+						      </tr>
+						    </tbody>
+						  </table>
+	<!-- 				 <label for="variables_lbl">Variable Name:</label>		
+								<input type="text" class="form-control" id="variables"  
+									list="variable_list" placeholder="Type here to search existing variable name or click dropdown button to show all variables"
+									data-toggle="tooltip" data-placement="right"
+									title="All Variables list here generated by get customer function." />
+								<datalist id="variable_list">
+								</datalist> -->
+
+				</div> 
+			</div>
+
+		</form>
+
+		<form class="col-md-12 form-horizontal well" role="form">
+
+			<div class="col-md-12 form-group">
+
+				<div class="form-inline">
+					<label for="customerkey_lbl">CustomerKey :</label>
+					<input type="text" class="form-control" id="customerkey_result" placeholder="Search Result" />
+					<label for="userid_lbl">UserID :</label>
+					<input type="text" class="form-control" id="userid_result" placeholder="Search Result" />
+					<label for="accountidentifier_lbl">AccountIdentifier :</label>
+					<input type="text" class="form-control" id="accountidentifier_result" placeholder="Search Result" />
+					<label for="consumerprofilekey_lbl">ConsumerProfileKey :</label>
+					<input type="text" class="form-control" id="consumerprofilekey_result" placeholder="Search Result" />
+					<label for="email_lbl">Email :</label>
+					<input type="text" class="form-control" id="email_result" placeholder="Search Result" />
+				</div>
+			</div>
+
+			</br> </br> </br>
+
+			<div class="panel panel-primary " id="sql_panel">
+				<div class="panel-heading">Query:</div>
+				<div class='panel-body' id='sql_body'></div>
+
+			</div>
+
+			<div class="col-md-12">
+
+				<button type="button" class="btn btn-md btn-success"
+					id="getcustomerkey">Find Customer</button>
+				<button type="button" class="btn btn-md btn-success"
+					id="generatequery">Show Query</button>
+			</div>
+		</form>
+
+	</div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal" role="dialog" tabindex="-1" id="ErrorDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Error Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<strong>Fail!</strong>
+  					<h5 id="error_message"></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="SuccessDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Success Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-success">
+  					<strong>Success!</strong>
+  					<h5 id="success_message"></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!--Please wait model-->
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog modal-sm" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock %} 
+{% block script_block %}
+
+<script language='JavaScript'>
+	var csrf_token = "{{ csrf_token }}";
+
+	$(document).ready(function() {
+		
+		$('#statement_div').hide();		
+		$('#variables_div').hide();			
+		//append_variables_content();
+		
+		$("#database").on('change', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			initialize(event);
+			changeEnv();
+		});
+		
+		
+		$("#project").on('change', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			load_custtype_list(event);
+			load_productmap(event);
+			load_email_prefix(event);
+			clear_page_by_project(event);
+		});
+
+		$('#listcusttype input').on('change', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			present_selected_custtypes(event);
+		});
+		$("#editCustType").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			edit_selected_custtypes(event);
+		});
+		$("#generatequery").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			get_generated_sql(event);
+		});
+		$("#getcustomerkey").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			get_customer(event);
+		})
+
+	});
+	
+    function changeEnv() {
+    	var target = $('#database').val();
+    	$('#environment option').remove();	
+    	if (target == '1'){
+    		$('#environment').append("<option value='-1' selected='selected'></option><option value='QA3'>QA3</option><option value='QA4'>QA4</option><option value='QA5'>QA5</option><option value='PIE'>PIE</option>");
+    	}
+    	else{
+    		$('#environment').append("<option value='-1' selected='selected'></option><option value='QA'>QA</option><option value='PIE'>PIE</option>");
+    	}
+    	
+    }
+	
+	window.onbeforeunload = confirmExit;
+	//exit confirm
+	function confirmExit() {
+		if (my_status == 'edit' | my_status == 'new') {
+			return 'You have attempted to leave this page.  If you have made any changes to the fields without clicking the Save button, your changes will be lost.  Are you sure you want to exit this page?';
+		}
+	}
+
+	Split([ '#leftpanel', '#middlepanel' ], {
+		sizes : [ 22, 78 ],
+
+	});
+</script>
+
+{% endblock %} 
+{% block endbody %} 
+{% endblock %}
+

@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block header %}
+	<!-- <meta http-equiv="refresh" content="30" /> -->
+{% endblock header %}
+
+{% block title %}
+	TestData Monitor - Run Status
+{% endblock title %}
+	
+{% block container_block %}
+
+
+<div class="container">
+		
+	<h1>Monitor&nbsp;<div style="display:inline;">{{ parent_monitor.parent_monitorId }}</div>&nbsp;-&nbsp;{{ parent_monitor.parent_monitorName }}</h1>
+	<h4 style="text-align:right; text-decoration: underline;"><a href="{% url 'testdataMonitor' %}">Back</a></h4>
+	<br />
+	
+	<div class="h3 alert alert-danger" style="display:none;">
+		<!-- <a class="close" data-dismiss="alert" href="#" aria-hidden="true">
+			&times;
+		</a> -->
+		<strong>Fail!&nbsp;</strong>
+		<span></span>
+	</div>
+
+	<div class="h3 alert alert-success"  style="display:none;">
+		<!-- <a class="close" data-dismiss="alert" href="#" aria-hidden="true">
+			&times;
+		</a> -->
+		<strong>Success!&nbsp;</strong>
+		<span></span>
+	</div>
+	
+	<div style="float : right;">
+	{% if userinfo.isadmin == True %}
+		<div class="form-group">
+			<div class="form-inline">
+				<label for="scheduled_starttime_lbl">Scheduled StartTime:&nbsp;</label><input id="scheduled_starttime" type="datetime-local" value="" style="width: 218px;"></input>&nbsp;&nbsp;<button type="button" class="btn btn-md btn-primary" id="scheduleMonitor" style="width: 110px;" onclick="schedule_monitor(event);" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Select Scheduled StartTime first and Schedule the monitor!">Schedule</button>
+			</div>
+			<div class="form-inline">
+				<button type="button" style="float: right; width: 110px;" class="btn btn-md btn-info" id="runMonitor" onclick="run_monitor(event);" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Run the monitor directly!">Run</button>
+			</div>
+		</div>
+	{% else %}
+		{% if userinfo.userName == parent_monitor.parent_monitorCreateBy %}
+			<div class="form-group">
+				<div class="form-inline">
+					<label for="scheduled_starttime_lbl">Scheduled StartTime:&nbsp;</label><input id="scheduled_starttime" type="datetime-local" value="" style="width: 218px;"></input>&nbsp;&nbsp;<button type="button" class="btn btn-md btn-primary" id="scheduleMonitor" style="width: 110px;" onclick="schedule_monitor(event);" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Select Scheduled StartTime first and Schedule the monitor!">Schedule</button>
+				</div>
+				<div class="form-inline">
+					<button type="button" style="float: right; width: 110px;" class="btn btn-md btn-info" id="runMonitor" onclick="run_monitor(event);" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Run the monitor directly!">Run</button>
+				</div>
+			</div>
+		{% else %}
+			<div class="form-group">
+				<div class="form-inline">
+					<label for="scheduled_starttime_lbl">Scheduled StartTime:&nbsp;</label><input id="scheduled_starttime" type="datetime-local" value="" style="width: 218px;" disabled="disabled"></input>&nbsp;&nbsp;<button type="button" class="btn btn-md btn-primary disabled" id="notScheduleMonitor" style="width: 110px;" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Not Owner! No permission to Schedule the monitor!">Schedule</button>
+				</div>
+				<div class="form-inline">
+					<button type="button" style="float: right; width: 110px;" class="btn btn-md btn-info disabled" id="notRunMonitor" data-dismiss="modal" data-monitor-id="{{ parent_monitor.parent_monitorId }}" data-token="{{ csrf_token }}" data-toggle="tooltip" title="Not Owner! No permission to Run the monitor directly!">Run</button>
+				</div>
+			</div>
+		{% endif %}
+	{% endif %}	
+	</div>
+	<br />
+	<br />
+	<br />
+	
+	<div class="section" id="custTypes">
+		<h3>Customer Types</h3>
+		<br />
+		<table class="table table-striped table-hover table-condensed table-bordered dataTable">
+			<thead>
+				<tr class="alert alert-warning">
+					<th>CustomerType Id</th>
+					<th>CustomerType Name</th>
+					<!-- <th>Monitor ID</th>
+					<th>Monitor Name</th> -->
+					<th>Threshold</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for custType in custTypes %}
+				<tr class="success branch expanded">
+					<td>{{ custType.custConfigId }}</td>
+					<td>{{ custType.custType }}</td>
+					<!-- <td>{{ custType.monitorId }}</td>
+					<td>{{ custType.monitorName }}</td> -->
+					<td>{{ custType.threshold }}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+	<br />
+	
+	
+	<div class="section" id="runs">
+		<h3>Runs</h3>
+		<br />
+		<table id="runs_table" class="table table-striped table-hover table-condensed table-bordered dataTable">
+			<thead>
+				<tr class="alert alert-warning">
+					<th>Run Id</th>
+					<th>Run Name</th>
+					<th>Description</th>
+					<!-- <th>Monitor ID</th>
+					<th>Monitor Name</th> -->
+					<th>Start Date</th>
+					<th>Finish Date</th>
+					<th>Status</th>
+					<th>Request By</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for run in runs %}
+				<tr class="success branch expanded">
+					{% if run.id != "" %}
+						<td><a style="text-decoration: underline;" href="{% url 'testdataMonitorRunDetails' run.id %}">{{ run.id }}</a></td>
+					{% else %}
+						<td></td>
+					{% endif %}
+					<td>{{ run.name }}</td>
+					<td>{{ run.description }}</td>
+					{% if run.startDate != "" %}
+						<td><input type="datetime-local" disabled="disabled" value="{{ run.startDate }}" style="width: 217px;"></input></td>
+					{% else %}
+						<td></td>
+					{% endif %}
+					{% if run.finishDate != "" %}
+						<td><input type="datetime-local" disabled="disabled" value="{{ run.finishDate }}" style="width: 217px;"></input></td>
+					{% else %}
+						<td></td>
+					{% endif %}
+					<td>{{ run.statusName }}</td>
+					<td>{{ run.requestBy }}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<script>
+	// The following code allows auto-fresh to be disabled if some task is taking too long.
+	var csrf_token = "{{ csrf_token }}";
+	var delay = 10000;
+	var auto_refresh = setTimeout(reload_page, 180000);
+	
+	$('#scheduleMonitor').on('click', {csrf_token: "{{ csrf_token }}" }, function(event){ schedule_monitor(event);});
+	$('#runMonitor').on('click', {csrf_token: "{{ csrf_token }}" }, function(event){ run_monitor(event);});
+	
+	function reload_page() {
+		location.reload();
+	}
+	
+	function run_monitor(event) {
+		
+		var json = {"run_monitorId" : $(event.target).attr("data-monitor-id"), "run_requestBy" : $('.nav.navbar-nav.navbar-right p.navbar-text').text().replace('Logged in as: ', '')};
+		var my_data = JSON.stringify(json);
+		
+		$.ajax({
+			type:  "POST",
+			url:  "../run_monitor",
+			headers:  { "X-CSRFToken": $(event.target).attr("data-token") },
+			data: {"myjsondata": my_data},
+			
+			success: function(data) {
+				if (data["responseCode"] == 'Success') {
+					$('.h3.alert.alert-success span').text(data["message"]);
+					$('.h3.alert.alert-success').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-success').delay(delay).hide(0);
+					setTimeout("window.location.reload()", 500);
+				} else {
+					$('.h3.alert.alert-danger span').text(data["message"]);
+					$('.h3.alert.alert-danger').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-danger').delay(delay).hide(0);
+					setTimeout("window.location.reload()", 500);
+				}
+				
+			},
+			
+			error: function(data) {
+				$('.h3.alert.alert-danger span').text("Schedule Monitor Service Error!");
+				$('.h3.alert.alert-danger').attr('style',{display: 'inline;'}).alert();
+				$('.h3.alert.alert-danger').delay(delay).hide(0);
+				setTimeout("window.location.reload()", 500);
+			}
+		});
+	}
+	
+	
+	
+	function schedule_monitor(event) {
+		
+
+		var json = {"schedule_monitorId" : $(event.target).attr("data-monitor-id"), "schedule_starttime" : $('#scheduled_starttime').val(), "schedule_requestBy" : $('.nav.navbar-nav.navbar-right p.navbar-text').text().replace('Logged in as: ', '')};
+		var my_data = JSON.stringify(json);
+		
+		
+		if($('#scheduled_starttime').val() === "" || $('#scheduled_starttime').val() === null) {
+			$('.h3.alert.alert-danger span').text("Scheduled StartTime is reqiured. The valid date format is mm/dd/yyyy HH:MM AM/PM");
+			$('.h3.alert.alert-danger').attr('style',{display: 'inline;'}).alert();
+			$('.h3.alert.alert-danger').delay(delay).hide(0);
+			setTimeout("window.location.reload()", 500);
+			
+		} else {
+		
+			$.ajax({
+				type:  "POST",
+				url:  "../schedule_monitor",
+				headers:  { "X-CSRFToken": $(event.target).attr("data-token") },
+				data: {"myjsondata": my_data},
+				
+				success: function(data) {
+					
+					if (data["responseCode"] == 'Success') {
+						$('.h3.alert.alert-success span').text(data["message"]);
+						$('.h3.alert.alert-success').attr('style',{display: 'inline;'}).alert();
+						$('.h3.alert.alert-success').delay(delay).hide(0);
+						setTimeout("window.location.reload()", 500);
+					} else {
+						$('.h3.alert.alert-danger span').text(data["message"]);
+						$('.h3.alert.alert-danger').attr('style',{display: 'inline;'}).alert();
+						$('.h3.alert.alert-danger').delay(delay).hide(0);
+						setTimeout("window.location.reload()", 500);
+					}
+					
+				},
+				
+				error: function(data) {
+					$('.h3.alert.alert-danger span').text("Schedule Monitor Service Error!");
+					$('.h3.alert.alert-danger').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-danger').delay(delay).hide(0);
+					setTimeout("window.location.reload()", 500);
+				}
+			});
+		}
+	}
+	
+	
+</script>
+{% endblock %}

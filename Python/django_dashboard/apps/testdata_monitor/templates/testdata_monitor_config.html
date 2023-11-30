@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+ {% block title %} 
+ TestData Monitor Configuration
+ {% endblock %}
+<!-- {% load static from staticfiles %}  -->
+{% load staticfiles %}
+ 
+<!-- {% block component_datatable %} 
+{% endblock component_datatable %} 
+{% block component_datatable_Initialize %} 
+{% endblock component_datatable_Initialize %} } -->
+
+{% block head_block %}   
+<script type="text/javascript" src="{% static 'js/testdata_monitor.js' %}"></script>
+
+<link rel="stylesheet" href="{% static 'plugins/vakata-jstree/themes/default/style.min.css' %}"/>
+
+<script type="text/javascript" src="{% static 'plugins/Split.js-master/split.min.js' %}"></script>
+
+<!-- DataTables CSS -->
+<!-- <link rel="stylesheet" type="text/css" href="{% static 'css/jquery.dataTables.min.css' %}" /> -->
+<!-- DataTables JS-->
+<!-- <script type="text/javascript" src="{% static 'js/jquery.dataTables.min.js' %}"></script> -->
+	
+{% endblock %} 
+ 
+{% block style %}
+
+<style>
+body {
+	padding-top: 70px; /* To fix nav bar overlapping content */
+	/*background-color: #E9F0D8;*/
+}
+
+.bg-green {
+	background-color: #99CB33; /* Green */
+	color: #ffffff;
+}
+
+.navbar {
+	background-color: #99CB33; /* Green */
+}
+
+.navbar li a,.navbar {
+	color: #fff;
+}
+
+.navbar-nav li a:hover,.navbar-nav li.active a {
+	color: #fff;
+	background-color: #EFA843; /* orange */
+}
+
+h1 {
+	color: #24922B;
+	text-align:center;
+}
+
+.gutter {
+	background-color: #eee;
+	background-repeat: no-repeat;
+	background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/vertical.png' %}");
+	cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/horizontal.png' %}");
+	cursor: row-resize;
+}
+
+.split.split-horizontal,.gutter.gutter-horizontal {
+	height: 100%;
+	float: left;
+}
+
+.table {
+	table-layout: fixed;
+}
+
+.td {
+	height: 20px;
+	overflow: hidden;	
+}
+
+#error_message {
+	color: red;
+}
+
+#success_message {
+	color: green;
+}
+
+#page_detail tbody tr+tr td {
+	word-wrap: break-word;
+	word-break: break-all;
+}
+</style>
+
+{% endblock %}
+
+{% block container_block %}
+
+<div class="container-fluid well"
+	style="width: auto; height: 925px; overflow-y: auto; overflow-x: auto;">
+    <h1>TestData Monitor Configuration</h1> 
+	<div class="split split-horizontal well" id="leftpanel">
+
+		<div class="form-group">
+			<label for="entity">Select Entity:</label> <select type="entity" class="form-control" id="entity" placeholder="Select Entity" autofocus>
+				<option value="-1"></option>
+				<option value="CustomerType">CustomerType</option>
+				<option value="Chain">CustomerType Chain</option>
+				<option value="Monitor">Monitor</option>
+				<option value="Mapping">Monitor CustomerType Mapping</option>
+			</select>
+		</div>
+
+		<div class="panel panel-primary " id="st_panel">
+			<div class="panel-heading">Monitor:</div>
+			<div id="monitor_list" class="panel collapse in">
+				<div class="panel-body" style="max-height: 400px;overflow-y: scroll;" id="listmonitor">
+				<input type="radio" name="monitor" hidden></input>			   
+				</div>                      
+			</div>			
+		</div>
+	</div>
+
+	<div class="split split-horizontal well" id="middlepanel" height="100">
+		<form class="col-md-12 form-horizontal well" role="form">
+			<div class="col-md-12 form-group" id="CustType_Div">
+				<table id="custtype_table" class="table table-striped table-hover table-condensed table-bordered">
+				<caption>CustomerType</caption>
+					<thead>
+						<tr class="alert alert-warning">
+							<th width='4%'>Id</th>        
+				            <th width='30%'>Name</th>
+				            <th width='32%'>Description</th>
+				            <th width='30%'>Real CustomerType</th>
+				            <th width='4%'></th>
+				        </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   		<a id="append_custtype" onclick ="add_custtype_click(this);">Add New CustomerType</a>
+			   		</br>
+			   </div>		
+			</div>
+	
+			<div class="col-md-12 form-group" id="Monitor_Div">
+				<table id="monitor_table" class="table table-striped table-hover table-condensed table-bordered">
+				<caption>Monitor</caption>	
+					<thead>
+				          <tr class="alert alert-warning" >			            
+				            <th width='5%'>Id</th>
+				            <th width='10%'>Name</th>
+				            <th width='15%'>Description</th>
+				            <th width='5%'>Environment</th>
+				            <th width='5%'>Project</th>
+				            <th width='5%'>Product Code</th>
+				            <th width='5%'>Interval Days</th>
+				            <th width='5%'>IPS</th>
+				            <th width='5%'>Multiple Layer</th>
+				            <th width='5%'>Email Prefix</th>
+				            <th width='5%'>UserID Prefix</th>
+				            <th width='10%'>Scheduled StartTime</th>
+				            <th width='15%'>Append Query Clause</th>
+				            <th width='5%'></th>	            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   		<a id="append_monitor" onclick ="add_monitor_click(this);">Add New Monitor</a>
+			   		</br>
+			   </div>
+			</div>
+			
+			<div class="col-md-12 form-group" id="Chain_Div">
+				<table id="chain_table" class="table table-striped table-hover table-condensed table-bordered">
+				<caption>CustomerType Chain</caption>
+					<thead>
+				          <tr class="alert alert-warning" >			            
+				            <th width='5%'>Id</th>
+				            <th width='30%'>Original CustomerType</th>
+				            <th width='30%'>Target CustomerType</th>
+				            <th width='25%'>Action</th>
+				            <th width='5%'>Time Delay</th>
+				            <th width='5%'></th>	            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   		<a id="append_chain" onclick ="add_chain_click(this);">Add New Chain</a>
+			   		</br>
+			   </div>
+			</div>
+			
+			<div class="col-md-12 form-group" id="Mapping_Div">
+				<table id="mapping_table" class="table table-striped table-hover table-condensed table-bordered">
+				<caption>Monitor CustomerType Mapping</caption>
+					<thead>
+				          <tr class="alert alert-warning" >			            
+				            <th width='5%'>Id</th>
+				            <th width='30%'>Monitor</th>
+				            <th width='30%'>CustomerType</th>
+				            <th width='30%'>Threshold</th>
+				            <th width='5%'></th>	            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   		<a id="append_mapping" onclick ="add_mapping_click(this);">Add New Mapping</a>
+			   		</br>
+			   </div>
+			</div>
+			
+		</form>
+
+	</div>
+
+</div>
+
+<!-- Modal -->
+
+<div class="modal" tabindex="-1" role="dialog" id="CustTypeDialog" data-backdrop="static" aria-labelledby="CustTypeDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">CustomerType:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-danger" id="deleteCustType" data-dismiss="modal">Delete</button>				
+				<button type="button" class="btn btn-sm btn-primary" id="saveCustType" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-primary" id="updateCustType" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-warning" id="cancelCustType" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="MonitorDialog" data-backdrop="static" aria-labelledby="MonitorDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Monitor:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-danger" id="deleteMonitor" data-dismiss="modal">Delete</button>				
+				<button type="button" class="btn btn-sm btn-primary" id="saveMonitor" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-primary" id="updateMonitor" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-warning" id="cancelMonitor" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="ChainDialog" data-backdrop="static" aria-labelledby="ChainDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">CustomerType Chain:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">										
+			</div>
+			<div class="modal-footer">	
+				<button type="button" class="btn btn-sm btn-danger" id="deleteChain" data-dismiss="modal">Delete</button>
+				<button type="button" class="btn btn-sm btn-primary" id="saveChain" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-primary" id="updateChain" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-warning" id="cancelChain" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="MappingDialog" data-backdrop="static" aria-labelledby="MappingDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Monitor CustomerType Mapping:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-danger" id="deleteMapping" data-dismiss="modal">Delete</button>
+				<button type="button" class="btn btn-sm btn-primary" id="saveMapping" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-primary" id="updateMapping" data-dismiss="modal">Save</button>
+				<button type="button" class="btn btn-sm btn-warning" id="cancelMapping" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="ErrorDialog" data-backdrop="static" aria-labelledby="ErrorDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Error Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<strong>Fail!</strong>
+  					<h5 id="error_message"></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" id="SuccessDialog" data-backdrop="static" aria-labelledby="SuccessDialogLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Success Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-success">
+  					<strong>Success!</strong>
+  					<h5 id="success_message"></h5>
+				</div>
+				
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<!--Please wait model-->
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" data-backdrop="static" aria-labelledby="please_wait_modal_Label" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+                 </h4>
+            </div>
+            <div class="modal-body">
+                <div class="progress">
+                    <div class="progress-bar progress-bar-info progress-bar-striped active" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} 
+
+
+
+
+{% block script_block %}
+
+<script type="text/javascript">
+	     
+	var csrf_token = "{{ csrf_token }}";
+	
+	$(document).ready( function() {
+		
+		//$('.table.table-striped.table-hover.table-condensed.table-bordered.dataTable').DataTable();
+		
+		initial_hide();
+		
+		initialize(); 	
+		
+		//Entity and Project 
+		$('#entity').on('change', { csrf_token: "{{ csrf_token }}" }, function(event){ handle_display_with_different_entities(event);});
+		
+		//Customer Type
+		$('#saveCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_custtype(event);});
+		$('#updateCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_custtype(event);});
+		$('#deleteCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ delete_custtype(event);});
+		
+		//Monitor
+		$('#saveMonitor').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_monitor(event);});
+		$('#updateMonitor').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_monitor(event);});
+		$('#deleteMonitor').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ delete_monitor(event);});
+		
+		//Chain
+		$('#saveChain').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_chain(event);});
+		$('#updateChain').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_chain(event);});
+		$('#deleteChain').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ delete_chain(event);});
+		
+		//Mapping
+		$('#listmonitor input').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ get_monitor_mappings(event, csrf_token);});
+		$('#saveMapping').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_mapping(event);});
+		$('#updateMapping').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_mapping(event);});
+		$('#deleteMapping').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ delete_mapping(event);});
+						
+	});
+	
+	//window.onbeforeunload = confirmExit;
+	//exit confirm
+	//function confirmExit()
+	//{
+		//if(my_status=='edit' | my_status=='new'){
+	  		//return 'You have attempted to leave this page.  If you have made any changes to the fields without clicking the Save button, your changes will be lost.  Are you sure you want to exit this page?';
+		//}
+	//}
+	
+	Split(['#leftpanel', '#middlepanel'],{
+	    sizes: [22, 78],
+	    
+	});
+	
+	</script>
+{% endblock %}
+
+{% block endbody %}
+{% endblock %}
+

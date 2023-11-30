@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+{% block title %}overview{% endblock %}
+
+{% block container_block %}
+  <div  style="overflow:auto;margin-left:50px;margin-right:50px;" >	
+	<label class="form-label">Total Available: {{total_left}}</label>
+	 &nbsp
+	{% if count_by_date %}
+		<div class="mb-3">
+			<label for="exampleFormControlTextarea1" class="form-label">License count details</label>
+	    </div>
+	
+		<table class="table table-striped table-bordered" id="licenseTable">
+		  <thead>
+		    <tr>
+		      <th scope="col">#</th>
+		      <th scope="col">Expiration Date</th>
+		      <th scope="col">Available Count</th>
+		    </tr>
+		  </thead>
+		  <tbody>	   
+		  {% for key, value in count_by_date.items %}
+		  	 <tr>	    	
+		      <th scope="row">{{ forloop.counter }}</th>
+		      <td>{{ key }}</td>
+		      <td>{{ value }}</td>      
+		    </tr>				
+		  {% endfor %}
+		 
+		  </tbody>
+		</table>
+   {% endif %}
+   {% if pending_activate_info %}
+		<div class="mb-3">
+			<label for="exampleFormControlTextarea1" class="form-label">Pending Activation Licenses (Total: {{pending_activate_total}})</label>
+	    </div>
+	
+		<table class="table table-striped table-bordered" id="licenseActivateTable">
+		  <thead>
+		    <tr>
+		      <th scope="col">#</th>
+		      <th scope="col">Name</th>
+		      <th scope="col">User Name</th>
+		      <th scope="col">Count</th>
+		      <th scope="col">Team</th>
+		      <th scope="col">Manager Email</th>
+		    </tr>
+		  </thead>
+		  <tbody>	   
+		  {% for key, value in pending_activate_info.items %}
+		  	 <tr>	    	
+		      <th scope="row">{{ forloop.counter }}</th>
+		      <td>{{ value.Name }}</td>
+		      <td>{{ value.UserName }}</td>
+		      <td>{{ value.Count }}</td>  
+		      <td>{{ value.Team }}</td>
+		      <td>{{ value.ManagerEmail }}</td>         
+		    </tr>				
+		  {% endfor %}
+		 
+		  </tbody>
+		</table>
+   {% endif %}
+   {% if pending_approve_info %}
+		<div class="mb-3">
+			<label for="exampleFormControlTextarea1" class="form-label">Pending Approval Licenses (Total: {{pending_approve_total}})</label>
+	    </div>
+	
+		<table class="table table-striped table-bordered" id="licenseApproveTable">
+		  <thead>
+		    <tr>
+		      <th scope="col">#</th>
+		      <th scope="col">Name</th>
+		      <th scope="col">User Name</th>
+		      <th scope="col">Count</th>
+		      <th scope="col">Team</th>
+		      <th scope="col">Manager Email</th>
+		    </tr>
+		  </thead>
+		  <tbody>	   
+		  {% for key, value in pending_approve_info.items %}
+		  	 <tr>	    	
+		      <th scope="row">{{ forloop.counter }}</th>
+		      <td>{{ value.Name }}</td>
+		      <td>{{ value.UserName }}</td>
+		      <td>{{ value.Count }}</td>  
+		      <td>{{ value.Team }}</td>
+		      <td>{{ value.ManagerEmail }}</td>         
+		    </tr>				
+		  {% endfor %}
+		 
+		  </tbody>
+		</table>
+   {% endif %}
+  </div>
+{% endblock %}
+
+
+
+

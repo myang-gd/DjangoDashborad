@@ -1,0 +1,298 @@
+{% extends 'healthcheck.html' %}
+
+{% load staticfiles %}
+
+{% load custom_tags %}
+
+{% block title %}Result{% endblock %}
+
+{% block script_block %} 
+	
+	{{ block.super }}
+		
+	<script type="text/javascript">
+		   
+	    $(function(){
+		  $('.request-popup-button').click(function(e){
+		    	e.preventDefault()
+		    	$('#requestPopup').dialog({
+		    			modal: true,
+		    			width: 1400,
+		    			height: 650
+		    	}).dialog('open').load(this.href)
+		  })
+		})
+		function toggle(source) {
+			checkbox_prefix = source.id.replace("_CheckBox","")
+			$('div').each(function(){
+				if( this.id == checkbox_prefix ) {
+		        	$(this).find(':checkbox').each(function(){
+						this.checked = source.checked;	
+					});				  
+		        }
+		    });				
+		}
+		function processAllSelect() {
+			$(".row-select").each(function(){				 
+				 if(this.id.indexOf("_CheckBox") != -1 &&  this.checked == true){
+					 row_id = this.id.replace("_CheckBox","")
+					 run_button_id =  row_id + "_run_Button"
+					 $('#tb_result button').each(function(){
+						 if(this.id == run_button_id && this.disabled == false ) {	
+							this.onclick.apply(this)
+						 }
+					 });
+				 }
+			 });		
+		}
+		function processServiceRequest(clicked_id,operation_id, endpoint) {
+			
+			 var row_id = ""
+			 
+			 if(clicked_id.indexOf("_run_Button") !=-1 ){
+				 row_id = clicked_id.replace("_run_Button","")
+			 }else{
+				 row_id = clicked_id
+			 }
+			var response_data_id = row_id + '_response_data'
+			var validation_result_id = row_id + '_validation_result'			
+			var response_id = row_id + "_response__Link"
+			var success_id  = row_id + "_SuccessLabel"
+			var elapsed_id  = row_id + "_ElapsedLabel"
+			document.getElementById(clicked_id).disabled = true;
+			document.getElementById(clicked_id).innerHTML = "<span class=\"glyphicon glyphicon-refresh glyphicon-refresh-animate\"></span>Running" ;
+			document.getElementById(success_id).innerText = 'N/A' ;
+			document.getElementById(success_id).style.backgroundColor = null;
+			document.getElementById(response_data_id).value  = ""
+    		document.getElementById(validation_result_id).value  = ""
+		   
+
+			$.ajax({
+		        url : "/healthcheck/result",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"operation_id" : operation_id, "endpoint" : endpoint},
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		var jsonData = responseDataObject.responseJSON
+						success = jsonData['success']
+		        		response = jsonData['response']
+		        		validationResult = jsonData['validationResult']
+		        		elapsed = jsonData['elapsed']
+		        		$('#tb_result span').each(function(){
+		        	    	if( this.id == success_id ) {
+		        	    		 $(this).text(success)
+		        	    		 if(success == 'Y'){
+		        	    			 $(this).css('background-color','#7FFF00');
+		        	    		 } else if(jsonData['success'] == 'N') {
+		        	    			 $(this).css('background-color','#DC143C');
+		        	    		 }		        	    			 	        	    		 
+		        	    	}
+							
+						});	
+		        		var elapsed_element = document.getElementById(elapsed_id);
+
+		        		if (elapsed_element.innerText) {
+		        			elapsed_element.innerText = elapsed;
+		        		}else if (elapsed_element.textContent) {
+		        			elapsed_element.textContent = elapsed;   
+		        		}
+		        		document.getElementById(response_data_id).value  = response
+		        		document.getElementById(validation_result_id).value  = validationResult
+		        		document.getElementById(clicked_id).disabled = false;
+		        		document.getElementById(clicked_id).innerHTML = "<span class=\"glyphicon glyphicon-play-circle\"></span>Run"
+		        		
+		        	},
+		        	error: function(jqXHR, textStatus, errorThrown) {
+		        		  console.log(textStatus, errorThrown);
+		        		  document.getElementById(clicked_id).disabled = false;
+		        		  document.getElementById(clicked_id).innerHTML = "<span class=\"glyphicon glyphicon-play-circle\"></span>Run"
+		        	}
+			});
+		}
+		function popupResponse(operationId, row_id){
+			
+			response_data_id = row_id + '_response_data'
+			validation_result_id = row_id + '_validation_result'	
+			response = document.getElementById(response_data_id).value
+			validation_result = document.getElementById(validation_result_id).value
+			$.ajax({
+		        url : "/healthcheck/viewResponse/",
+		        type : "POST",
+		        dataType: "json",
+		        data : {"operation_id" : operationId, 
+		        		"response" : response, 
+		        		'validation_result' : validation_result,
+		        		'csrfmiddlewaretoken' : '{{ csrf_token }}' },
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+
+			        	var jsonData = responseDataObject.responseJSON
+			        	html = jsonData['html']
+
+						$('#responsePopup').dialog({
+			    			modal: true,
+			    			width: 1400,
+			    			height: 650
+		    			}).dialog('open').html(html)
+		        	},
+			});
+		}
+		$(document).ready(function() {
+			 $("#environmentId").multiselect("refresh");			 
+			 $("#individualServerId").multiselect("deselectAll");	
+			 $("#vipId").multiselect("deselectAll");
+		})
+	</script>
+{% endblock %}
+
+
+{% block body_block %}
+	{{ block.super }}
+	<hr/>
+	<nav class="navbar navbar-default">
+		<div class="container-fluid">
+    		<div class="collapse navbar-collapse" >
+    			<form class="navbar-form navbar-right">
+						<button type="button"  id="run_all_Button" class="btn btn-default btn-success" onclick="processAllSelect();"><span class="glyphicon glyphicon-play-circle"></span>Run All</button>
+      			</form>
+    		</div><!-- /.navbar-collapse -->
+	 	</div><!-- /.container-fluid -->
+	</nav>
+	{% if vip_server_operation_map %}
+	{% for key, value in vip_server_operation_map.items %}
+
+		<div class="panel panel-default panel-success" style="overflow:auto" >
+			<div class="panel-heading" align="center"  >
+			    <h1 class="panel-title">
+			    	<a data-toggle="collapse" href="#{{ key }}">VIP: {{ key }}</a>
+			    </h1>
+			</div>
+			<div id="{{ key }}" class="panel-collapse collapse in">
+				<div class="panel-body">	
+					<table class="table table-striped table-bordered sortable" id="tb_result">						
+						<thead>
+					      <tr>
+					        <th>Environment</th>
+					        <th>Service</th>
+					        <th>Endpoint</th>
+					        <th>Port</th>
+					        <th>Operation(s)</th>
+					        <th data-defaultsort='disabled'>View Request</th>
+					        <th data-defaultsort='disabled'>View Response</th>
+					        <th>Team</th>
+					        <th data-defaultsort='disabled'>Success</th>
+					        <th data-defaultsort='disabled'>Elapsed</th>
+					        <th data-defaultsort='disabled'>Timeout</th>
+					        <th data-defaultsort='disabled'>Run this call?</th>
+					        <th data-defaultsort='disabled' >
+					        	<ul class="big">
+						        	<div class="make-switch switch-mini">
+	    									<input type="checkbox" class="row-select-all"  onClick="toggle(this)" id ="{{key}}_CheckBox" >
+									</div>
+								</ul>
+							</th>
+					      </tr>
+			    		</thead>
+					    <tbody>
+					    	  {% for key, value in value.items %}
+						      	<tr>
+						      		<td> {{ environment }} </td>
+						        	<td>{{ key }} </td>
+						        	<td><a href="{{ value.0.endpoint }}" target="_blank">{{ value.0.endpoint }}</a></td>
+					        		<td>{{ value.0.port }}</td>
+					        		<td>
+										{% for operation in value %}
+					        				<ul class="big">
+							        			<li  id="{{key}}-{{operation.name}}OperationListItem">{{ operation.name }}</li>
+											</ul>
+										{% endfor %}
+					        		</td>
+					        			<td>
+					        				<div id="requestPopup" title="Request Message"></div>
+					        				{% for operation in value %}
+					        					<ul class="big">
+						        					<a href="{% url 'view_healtcheck_request' %}?operationId={{operation.id}}" id="{{key}}-{{operation.name}}_request__Link" class="request-popup-button">
+						        						<span></span> Request
+						        					</a>
+					        					</ul>
+					        				{% endfor %}
+					        			</td>
+					        			<td>
+					        				<div id="responsePopup" title="Response Message"></div>
+					        				{% for operation in value %}
+												<ul class="big">
+													<a onclick="popupResponse('{{operation.id}}', '{{key}}-{{operation.name}}_{{operation.id}}')" id="{{key}}-{{operation.name}}_response_Link"  class="response-popup-button">
+						        						<span></span> Response
+						        					</a>
+						        					<input type="hidden" class="form-control"  id="{{key}}-{{operation.name}}_{{operation.id}}_response_data" value = "" >
+							        				<input type="hidden" class="form-control" id="{{key}}-{{operation.name}}_{{operation.id}}_validation_result"  value = "">
+					        					</ul>
+					        						        									        					
+					        				{% endfor %}
+					        			</td>
+					        			<td>
+					        				{% for operation in value %}
+						        				<ul  class="big" style="list-style-type:none; text-align:left">
+						        					<li>
+						        						<span id="{{key}}-{{operation.name}}_{{operation.id}}_TeamLabel" class="label label-default">{{operation.teamname}}</span>
+						        					<li>
+						        				</ul>
+					        				{% endfor %}
+					        			</td>
+					        			<td>
+				        					{% for operation in value %}
+					        					<ul class="big" style="list-style-type:none; text-align: left">
+					        						<li >
+					        							<span id="{{key}}-{{operation.name}}_{{operation.id}}_SuccessLabel" class="label label-default">N/A</span>
+					        						<li>
+					        					</ul>
+				        					{% endfor %}
+					        			</td>
+					        			<td>
+				        					{% for operation in value %}
+					        					<ul class="big" style="list-style-type:none; text-align: left">
+					        						<li >
+					        							<span id="{{key}}-{{operation.name}}_{{operation.id}}_ElapsedLabel" class="label label-default">N/A</span>
+					        						<li>
+					        					</ul>
+				        					{% endfor %}
+					        			</td>
+					        			<td>
+				        					{% for operation in value %}
+					        					<ul class="big" style="list-style-type:none; text-align: left">
+					        						<li >
+					        							<span id="{{key}}-{{operation.name}}_{{operation.id}}_TimeoutLabel" class="label label-default">{{operation.timeout}}s</span>
+					        						<li>
+					        					</ul>
+				        					{% endfor %}
+					        			</td>
+					        			<td>
+					        				{% for operation in value %}
+					        					<ul class="big">
+					        						<button type="submit" id="{{key}}-{{operation.name}}_{{operation.id}}_run_Button" class="btn btn-default btn-success small" onclick="processServiceRequest(this.id, '{{operation.id}}', '{{operation.endpoint}}');"><span style="vertical-align: text-top" class="glyphicon glyphicon-play-circle"></span>Run</button>
+					        						<br/>
+					        					</ul>
+					        				{% endfor %}
+					        			</td>
+					        			<td class="bs-checkbox">
+					        				{% for operation in value %}
+					        					<ul class="big">
+						        					<div class="make-switch switch-mini">
+	    												<input type="checkbox" class="row-select" id = "{{key}}-{{operation.name}}_{{operation.id}}_CheckBox">
+													</div>	
+												</ul>																						
+					        				{% endfor %}
+					        			</td>
+						      	</tr>
+					     	{% endfor %}
+					    </tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	{% endfor %}
+	{% endif %}
+{% endblock %}

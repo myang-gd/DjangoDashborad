@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+
+{% load custom_tags_healthcheck %}
+
+{% load staticfiles %}
+
+{% block title %}API Healthcheck{% endblock %}
+
+{% block script_block %} 
+	<!-- Initialize the plugin: -->
+	<script type="text/javascript">
+		
+		
+		function processVIPDropDownChange(element, checked)
+        {
+            var selectedEnvironment = $("#environmentId option:selected").text();	      			 
+		    var allSelectedVips = $('#vipId option:selected');
+		    var selectedVips = []
+		    $(allSelectedVips).each(function(index, bran) {
+		    	selectedVips.push($(this).val())	
+		    })
+		
+			$.ajax({
+		        url : "/healthcheck",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"environment" : selectedEnvironment, "vip[]" : selectedVips},
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		var individual_server_list_array = [];
+			        	var jsonData = responseDataObject.responseJSON
+			        	
+			        	if(jsonData.hasOwnProperty('individual_server_filter_dict')){
+			        		
+				        	for (var key in jsonData['individual_server_filter_dict'])
+				        	{
+				        		
+				        		jsonData_individual_server = jsonData['individual_server_filter_dict']
+				        		if (jsonData_individual_server.hasOwnProperty(key)) 
+				        		{
+				        			
+				        			var opt_children_array = []
+				        			var jsonElementObject = JSON.parse(jsonData_individual_server[key], function(k,v) {
+				        				if (k == 'name') 
+				        				{
+				        					var opt_children_map = {}
+				        					opt_children_map["label"] = v
+				        					opt_children_map["value"] = v
+				        					opt_children_array.push(opt_children_map)
+				        				}
+				        			});
+				        			
+				        		}
+				        		individual_server_list_array.push( {
+				        				'label' : key,
+				        				'value' : key,
+				        				'children': opt_children_array
+				        		})
+				        	}
+			        	}
+			        	
+			        	var team_list_array = []
+			        	if(jsonData.hasOwnProperty('team_list') && jsonData['team_list'].length > 0){				        		
+			        		var team_list = jsonData['team_list']
+			        		for(var i in team_list){
+			        			
+			        			team_list_array.push({
+    			        			'label' : team_list[i],
+    			        			'value' : team_list[i],
+	    			        	})
+			        		}			        		
+			        	}
+			        	
+			        	$("#teamId").multiselect('dataprovider', team_list_array)
+			        	$("#individualServerId").multiselect('dataprovider', individual_server_list_array)
+			        	if (selectedVips.length == 0) 
+					    { 
+					    	$("#runButton").attr("disabled","disabled");
+					    	$("#individualServerId").multiselect('disable')
+					    	
+					    }
+					    else 
+					    {
+					    	$("#runButton").removeAttr("disabled");
+					    	$("#individualServerId").multiselect('enable')
+					    }
+		        	}
+			});
+		}
+		
+		
+   		$(document).ready(function() {
+      			
+   				// Add multiSelect for VIP field
+   				$('#vipId').multiselect({
+   	            	includeSelectAllOption: true,
+   	            	enableFiltering: true,
+   	             	enableCaseInsensitiveFiltering: true,
+   	             	allSelectedText: 'No more VIP(s) left ...',
+   	             	onSelectAll: processVIPDropDownChange,
+   	             	onChange: processVIPDropDownChange
+   	        
+   				});
+   				
+   				
+      			 $('#filter-form').on('reset', function() {
+      	            $('#vipId option:selected').each(function() {
+      	                $(this).prop('selected', false);
+      	            })
+      	 
+      	            $('#vipId').multiselect('refresh');
+      	        });
+      			 
+      			 
+      			 $('#environmentId').multiselect({
+      					onChange:	function(option, element, checked) 
+      					{
+      						$("#runButton").attr("disabled","disabled");
+  							$("#individualServerId").multiselect('disable');
+			
+      						var optionSelected = $(option).val()
+      						if (optionSelected.toLowerCase().indexOf('select') != -1) 
+      						{
+      							$("#vipId").multiselect('disable');
+      							$("#teamId").multiselect('disable');
+      						} else
+      						{
+      							
+      				 			$.ajax({
+        		    		        url : "/healthcheck",
+        		    		        type : "GET",
+        		    		        dataType: "json",
+        		    		        data : {"environment" : optionSelected},
+        		    		        success: 
+        		    		        	function(response, result, responseDataObject) 
+        		    		        	{
+        		    		        		
+        		    		        		var server_list_array = [];
+        		    			        	var jsonData = responseDataObject.responseJSON
+        		    			        	if(jsonData.hasOwnProperty('individual_server_filter_dict')){
+        		    			        		
+        		    			        		for (var key in jsonData['individual_server_filter_dict'])
+            		    			        	{
+            		    			        		server_list_array.push({
+        			    			        			'label' : key,
+        			    			        			'value' : key,
+            			    			        	})
+            		    			        	}
+        		    			        	}
+        		    			        	var team_list_array = []
+        		    			        	if(jsonData.hasOwnProperty('team_list') && jsonData['team_list'].length > 0){				        		
+        		    			        		var team_list = jsonData['team_list']
+        		    			        		for(var i in team_list){
+        		    			        			
+        		    			        			team_list_array.push({
+        			    			        			'label' : team_list[i],
+        			    			        			'value' : team_list[i],
+            			    			        	})
+        		    			        		}			        		
+        		    			        	}
+        		    			        	
+        		    			        	$("#teamId").multiselect('dataprovider', team_list_array)
+        		    			        	$("#vipId").multiselect('dataprovider', server_list_array)
+        		    						$("#individualServerId").multiselect('dataprovider', [])
+        		    						
+        		    			        	if (server_list_array.length == 0) 
+        		    					    	$("#vipId").multiselect('disable')
+        		    					    else 
+        		    						    $("#vipId").multiselect('enable')
+        		    						    
+        		    						if (team_list_array.length == 0) 
+            		    					    $("#teamId").multiselect('disable')
+            		    				    else 
+            		    						$("#teamId").multiselect('enable')
+            		    					    
+        		    		        	}
+            						});
+      						}
+      					}	
+      			 })
+      			 
+      			// Add multiSelect for Individual Server List
+      			 $('#individualServerId').multiselect({
+    	            	includeSelectAllOption: true,
+    	            	enableCollapsibleOptGroups: true,
+       	            	enableFiltering: true,
+       	            	enableClickableOptGroups: true,
+       	             	enableCaseInsensitiveFiltering: true,
+       	            	allSelectedText: 'No more Individual Server(s) left ...'
+       			});
+      			$('#filter-form').on('reset', function() {
+       	            $('#individualServerId option:selected').each(function() {
+       	                $(this).prop('selected', false);
+       	            })
+       	 
+       	            $('#individualServerId').multiselect('refresh');
+       	           
+       	        });
+      			 $('#teamId').multiselect({
+  	            	includeSelectAllOption: true,
+  	            	enableCollapsibleOptGroups: true,
+     	            	enableFiltering: true,
+     	            	enableClickableOptGroups: true,
+     	             	enableCaseInsensitiveFiltering: true,
+     	            	allSelectedText: 'No more Team(s) left ...'
+     			});
+      			$('#filter-form').on('reset', function() {
+       	            $('#teamId option:selected').each(function() {
+       	                $(this).prop('selected', false);
+       	            })
+       	 
+       	            $('#teamId').multiselect('refresh');
+       	           
+       	        });
+      			
+      			 
+      			
+  		 });
+	</script>
+{% endblock %}
+
+
+{% block container_block %}
+ <div class="container-fluid">
+    	<div class="row">
+        	<div class="col-sm-3 col-md-1 sidebar">
+        		{% block side_block %}
+         			{% get_vip_list vip %}
+         		{% endblock %}
+        	</div>
+
+
+        	<div class="col-sm-9 col-sm-offset-3 col-md-11 col-md-offset-1 main">
+        	    {% block body_block %}
+         		<div>
+        			<form id="filter-form" class="form-horizontal" role="form" action="{% url 'result' %}" method="post">
+						{% block body_block_form_items %}
+							{% csrf_token %}
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="environmentId">Environment: </label>
+								<div class="col-sm-10">
+									<select class="form-control" id="environmentId" name="environment">
+										{% if environment_server_dict %}
+												<option value="NoneSelected">--Select Environment--</option>
+											{% for key, value in environment_server_dict.items %}
+										    	<option value="{{ key }}"  {% if environment == key %} selected{% endif%} >{{ key }}</option>
+										    {% endfor %}
+										{% endif %}
+						  			</select>
+						  		</div>	  		
+							</div>
+							
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="vipId">VIP (Virtual IP): </label>
+								<div class="col-sm-10">
+									<select class="form-control" id="vipId" name="vip" multiple="multiple" disabled="disabled" >
+										{% if environment_server_dict %}
+											{% for key, value in environment_server_dict.items %}
+												{% for vip_key, individual_server_list in value.items %}
+										    		<option value="{{ vip_key }}">{{ vip_key }}</option>
+										    	{% endfor %}
+										    {% endfor %}
+										{% endif %}
+									</select>
+								</div>
+							</div>
+							
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="individualServerId">Individual Server(s): </label>
+								<div class="col-sm-10">
+									<select class="form-control" id="individualServerId" name="individualServer" multiple="multiple" disabled="disabled">
+										{% if environment_server_dict %}
+											{% for key, value in environment_server_dict.items %}
+												{% for vip_key, individual_server_list in value.items %}
+													<optgroup label="{{ vip_key }}" disabled="disabled">
+														{% for individual_server in individual_server_list %}
+											    			<option value="{{ individual_server.name }}" disabled="disabled">{{ individual_server.name }}</option>
+											    		{% endfor %}
+											    	</optgroup>
+											    {% endfor %}
+										    {% endfor %}
+										{% endif %}
+									</select>
+								</div>
+							</div>
+							
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="teamId">Team(s): </label>
+								<div class="col-sm-10">
+									<select class="form-control" id="teamId" name="team" multiple="multiple" disabled="disabled" >
+										{% if team_list %}
+											{% for value in team_list %}
+												<option value="{{ value }}" disabled="disabled" >{{ value }}</option>
+										    {% endfor %}
+										{% endif %}
+									</select>
+								</div>
+							</div>
+												
+							<div class="form-group"> 
+							    <div class="col-sm-offset-2 col-sm-10">
+							      <button type="submit" id="runButton" class="btn btn-default btn-success"  disabled="disabled"><span class="glyphicon glyphicon-play"></span>Run</button>
+							      <button type="reset" id="reset-button" class="btn btn-default btn-warning"><span class="glyphicon glyphicon-refresh"></span>Reset</button> 
+							    </div>
+					  		</div>
+				  		{% endblock %}
+					</form>
+         		</div>
+        		{% endblock %}
+        	</div>
+		</div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block head_block %}
+    <script src="{% static 'js/bootstrap-treeview.js' %}"></script>
+    <script src="{% static 'js/jquery.contextMenu.js' %}"></script>
+    <script src="{% static 'js/configmodifier/process-dropdown.js' %}"></script>
+    <link href="{% static 'css/jquery.contextMenu.css' %}" rel="stylesheet" />
+    <link rel="shortcut icon" href="{% static 'icons/quit.svg' %}"/>
+    <script src="https://swisnl.github.io/jQuery-contextMenu/dist/jquery.contextMenu.js" type="text/javascript"></script> -->
+    <style type="text/css" id="treeview-style"> .treeview .list-group-item{cursor:pointer}.treeview span.indent{margin-left:10px;margin-right:10px}.treeview span.icon{width:12px;margin-right:5px}.treeview .node-disabled{color:silver;cursor:not-allowed}.node-treeview{color:#428bca;border:none;}.node-treeview:not(.node-disabled):hover{background-color:#F5F5F5;} </style>
+{% endblock %}
+{% block title %}Base entry{% endblock %}
+	
+{% block container_block %}
+<script type="text/javascript">
+	setTimeout(function() {
+		 $('.info').attr("style", "visibility: hidden")
+	}, 10*1000);
+</script>
+
+ <div class="container-fluid">
+    	<div class="row">
+        	<div class="col-sm-3 col-md-1 sidebar">
+        		 {% block side_block %}
+         			{% get_support_side  request.user %}
+         		{% endblock %}
+             </div>
+	        <div class="col-sm-9 col-sm-offset-3 col-md-11 col-md-offset-1 main">	
+	        	<p class="errornote">
+					  {% block message_block %}
+							{% if messages %}
+								<ul class="messages">
+									{% for message in messages %}
+									    <li {% if message.tags %} class="{{ message.tags }}" {% endif %}><b>{{ message }}</b></li>
+									{% endfor %}
+								</ul>
+							{% endif %}
+					  {% endblock %}
+				</p>
+				
+				<div class="btn-toolbar" role="toolbar" >
+					<div class="btn-group pull-right" role="group" aria-label="First group" >					
+						<button type="button" class="btn btn-default">Help</button> 
+							{% block helplink %}
+							<button type="button" class="btn btn-default" onclick="window.location.href='{{help_link}}'"> 	
+								<a id="help_url" href="{{help_link}}" target="_blank" >
+   									<img src="/static/admin/img/icon-unknown.svg" alt="help"/>
+   								</a>
+   							</button> 
+						    {% endblock %}
+						</div>
+				</div>
+				
+				</br>
+		        {% block panel %}	        		
+			        <div class="panel panel-default" >
+						<div class="panel-heading" align="center"  >
+						    <h1 class="panel-title">
+						    	{% block panel_header %}
+						    	  ConfigModifier Home
+						    	{% endblock %}
+						    </h1>
+						</div>
+						</br>
+						{% block panel_content %}
+						{% endblock %}
+				    </div>
+			    {% endblock %}
+		   </div>
+      </div>
+</div>
+{% endblock %}
+
+
+

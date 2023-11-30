@@ -1,0 +1,1 @@
+prunsrv //DS//LogOutputer-WindowService

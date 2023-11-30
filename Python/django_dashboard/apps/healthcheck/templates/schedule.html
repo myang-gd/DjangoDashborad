@@ -1,0 +1,47 @@
+{% extends 'healthcheck.html' %}
+
+{% load custom_tags %}
+
+{% load staticfiles %}
+
+{% block title %}Schedule API Healthcheck run{% endblock %}
+
+{% block script_block %} 
+	{{ block.super }}
+{% endblock %}
+{% block body_block %}
+		  <p class="errornote">
+			  {% block message_block %}
+					{% if messages %}
+						<ul class="messages">
+							{% for message in messages %}
+							    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}><b>{{ message }}</b></li>
+							{% endfor %}
+						</ul>
+					{% endif %}
+	
+			  {% endblock %}
+		  </p>
+  	      {% block tab_header_block %}
+	       	  <ul class="nav nav-tabs">
+				  <li  class="active" id="schedule_configuration_tab" ><a href="{% url 'schedule' %}">Schedule configuration</a></li>
+				  <li  id="view_schedules_tab" ><a href="{% url 'schedule_views' %}"  >View schedules</a></li>
+				  <li  id="view_runs_tab" ><a href="{% url 'schedule_run' %}"  >View runs</a></li>
+			   </ul>
+		  {% endblock %}
+		<div class="tab-content">
+		  <div class="tab-pane fade in active">
+		    </br>
+		   		<div>
+	        			<form id="filter-form" class="form-horizontal" role="form" action="{% url 'schedule_config' %}" method="post">
+							{% block body_block_form_items %}
+								{{ block.super }}	
+					  		{% endblock %}
+						</form>
+	         		</div>	 
+	      </div>
+	     </div>
+				  				
+{% endblock %}
+  	    
+      	    

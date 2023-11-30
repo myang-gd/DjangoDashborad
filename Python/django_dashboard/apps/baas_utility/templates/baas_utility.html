@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+<!-- {% load common_tags %} -->
+{% load static %} 
+
+{% block header %}
+{% endblock header %}
+
+{% block title %}
+	BaaS Utility
+{% endblock title %}
+	
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+        <div class="col-lg-6" style='text-align:center'>
+			<h1>QA Environment BaaS Utility</h1>
+			<br />
+			<br />
+			<br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm">
+				
+				<div class="h3 alert alert-warning" style="display:none;">
+<!-- 					<a class="close" data-dismiss="alert" href="#" aria-hidden="true">
+						&times;
+					</a> -->
+					<strong>Warning!&nbsp;</strong>
+					<span></span>
+				</div>
+				<div class="form-group">
+					
+					<select class="form-control" id="environment" autofocus>
+	  					<option>Environment</option>
+	  					<option>QA</option>
+	  					<option>PIE</option>
+	  				</select>
+	  				
+	  				<select class="form-control" id="paymentinstrumenttype">
+	  					<option>Payment Instrument Type</option>
+	  					<option>EMV</option>
+	  					<option>Virtual</option>
+                        <option>ContactlessEMV</option>
+	  				</select>
+	  				<input class="form-control" data-toggle="tooltip" title="Input BaaS Tokenized PAN here!" data-placement="left" style="padding-left:17px" type="text" {% if value %} value = "{{ value }}" {% endif %} id="tokenizedpan" placeholder="Tokenized PAN">
+	  			</div>
+				<button class="btn btn-md btn-success btn-block" type="button" id="get_card_info" data-toggle="tooltip" title='Hit me to get Card Info!' data-placement="right">Get Card Info</button>
+			</form>
+			<br/> 
+			
+			<div id="card_info_result">
+			</div>
+			<div class="col-lg-3"></div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var delay = 3000;
+var loading_task = 0;
+
+$('#get_card_info').on('click', { url: "{% url 'get_card_info' %}", csrf_token: "{{ csrf_token }}" }, get_cvv)
+	
+function get_cvv(event)
+{
+	var env = $('#environment').val();
+	var tokenized_pan = $('#tokenizedpan').val();
+	var payment_instrument_type = $('#paymentinstrumenttype').val();
+	var regex = /^\s+$/;	
+	
+	$('#card_info_result').empty();
+	
+	if(env == "Environment")
+	{
+		$('.h3.alert.alert-warning span').text("Please select Environment!");
+		$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+		$('.h3.alert.alert-warning').delay(delay).hide(0);
+	}
+	else
+	{	
+		if(payment_instrument_type == "Payment Instrument Type")
+		{
+			$('.h3.alert.alert-warning span').text("Please select Payment Instrument Type!");
+			$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+			$('.h3.alert.alert-warning').delay(delay).hide(0);
+		}
+		else
+		{
+			if((tokenized_pan == null) || (tokenized_pan == "") || (regex.test(tokenized_pan) == true))
+			{
+				$('.h3.alert.alert-warning span').text("Please input Tokenized PAN!");
+				$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+				$('.h3.alert.alert-warning').delay(delay).hide(0);
+			}
+		}
+	}
+	
+	if((env != "Environment") && (payment_instrument_type != "Payment Instrument Type") &&((tokenized_pan != null) && (tokenized_pan != "") && (regex.test(tokenized_pan) == false)))
+	{
+		var json = {"env": env, "tokenized_pan": tokenized_pan, "payment_instrument_type": payment_instrument_type};
+		ui_lock(1);
+		
+		$.ajax({
+			type: "POST",
+			url: event.data.url,
+			headers: {"X-CSRFToken": event.data.csrf_token},
+			data: json,
+			timeout: 10000,
+			success:  function(data) {
+				ui_unlock();
+				
+				if (data["Output"]["ResponseCode"] == "Failed")
+				{
+					$('.h3.alert.alert-warning span').text(data["Output"]["Error"]);
+					$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-warning').delay(delay).hide(0);
+					//window.location.reload();
+				}
+				else
+				{   				
+					var result_table = "<h3>BaaS Card Info</h3><table class='table table-striped table-hover table-bordered table-condensed'><tr><th>PAN</th><td>"+ data["Output"]["PAN"] + "</td></tr><tr><th>CVV</th><td>"+ data["Output"]["CVV"] + "</td></tr><tr><th>Expiration</th><td>"+ data["Output"]["ExpDate"] + " (MM/YYYY)</td></tr><tr><th>SSN</th><td>"+ data["Output"]["SSN"] + "</td></tr><tr><th>DOB</th><td>"+ data["Output"]["DOB"] + " (MM-DD-YYYY)</td></tr></table>";
+					
+					$('#card_info_result').append(result_table);
+				}
+			}
+		});
+	}
+}
+
+//Lock UI 
+function ui_lock(taskcount)
+{
+  	$('#please_wait_modal').modal('show');
+	loading_task = taskcount;
+}
+
+//Unlock UI
+function ui_unlock()
+{
+	loading_task = loading_task -1;
+	if(loading_task <= 0)
+	{
+		$('#please_wait_modal').modal('hide');
+	}
+}
+
+</script>
+
+{% endblock container_block %}
+

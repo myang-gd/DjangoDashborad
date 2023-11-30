@@ -1,0 +1,495 @@
+{% extends 'entry.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block title %}Make Request{% endblock %}
+{% block script_block %} 
+	<script type="text/javascript">
+	
+		$(document).ready(function() {
+		
+			 $('#id_environment').prepend('<option value="NoneSelected" selected=true>--Select Environment--</option>'); 
+			 $('#id_server_type').prepend('<option value="NoneSelected" selected=true>--Select Server Type--</option>'); 
+			 $('#id_server').prepend('<option value="NoneSelected" selected=true>--Select Server--</option>'); 
+			 $('#id_file').prepend('<option value="NoneSelected" selected=true>--Select File--</option>'); 
+			 $('#id_config').prepend('<option value="NoneSelected" selected=true>--Select Config--</option>'); 			 
+			 $('#id_environment_f').prepend('<option value="NoneSelected" selected=true>--Select Environment--</option>'); 
+			 $('#id_team_f').prepend('<option value="NoneSelected" selected=true>--Select Team--</option>'); 
+			 $('#id_value_type').prepend('<option value="NoneSelected" selected=true>--Select Value Type--</option>'); 
+			 
+			 $('label[for=id_form--value_type]').attr("style", "display: none")
+			 $('#id_value_type').parent().attr("style", "display: none") 
+			 
+			 $('label[for=id_form--field_value_list]').attr("style", "visibility: hidden")
+			 $('#id_field_value_list').parent().attr("style", "visibility:  hidden") 
+			 $('label[for=id_form--field_value_list_f]').attr("style", "visibility: hidden")
+			 $('#id_field_value_list_f').parent().attr("style", "visibility:  hidden") 
+			  $('#id_environment').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processEnvironmentDropDown(option, element, checked);disableBtn();disableBtn("feature")},
+					maxHeight: 450,
+			   })
+
+			  $('#id_server_type').multiselect({
+				 enableFiltering: true,
+	             enableCaseInsensitiveFiltering: true,
+				 onChange: processServerTypeDropDown,
+				 maxHeight: 450,
+			  })
+				 
+			 $('#id_server').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processServerDropDown(option, element, checked);disableBtn();},
+					maxHeight: 450,
+			 })
+			 
+			 $('#id_file').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processFileDropDown(option, element, checked);disableBtn();},
+					maxHeight: 350,
+					dropUp: false,
+			 })
+			  $('#id_config').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: processConfigDropDown,
+					maxHeight: 350,
+					dropUp: false,
+			 })
+			 $('#field-value-type-text').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					maxHeight: 450
+			 })
+			 $('#id_value_type').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					maxHeight: 450,
+					onChange: processValueTypeDropDown,
+			 })
+			 
+			 $('#id_field_value_list').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+ 	             	onChange: processValueDropDown,
+					maxHeight: 450,
+			 })
+			 
+			 $('#id_environment_f').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processTeamDropDown(option, element, checked);disableBtn("feature");},
+					maxHeight: 450,
+			 })
+			 $('#id_team_f').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processTeamDropDown(option, element, checked);disableBtn("feature");},
+					maxHeight: 450,
+			 })
+			 $('#id_feature_f').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processFeatureDropDown(option, element, checked);disableBtn("feature");},
+					maxHeight: 450,
+			 })
+
+			 $( document ).ajaxComplete(function() {
+				 checkTabFeature();
+				 checkTabServer()
+			});
+			 $('#tab_server').change(function(){checkTabServer() });
+			 $('#tab_feature').change(function(){checkTabFeature() });
+			
+			$('#id_make_request_by_server_form').submit(function(e) {
+				e.preventDefault();
+				setSameServerType(this);
+				/* if($('#id_include_all_servers').prop("checked") == false) { 
+	        		$('#servers_same_type').text("<" + $("#id_server :selected").text() + ">")
+	        		dialogconfirm(this);
+	        		
+	        	} else {
+	        		setSameServerType(this);
+	        	}
+ */
+			}); 
+			var field_type_list_new = [];
+			$("#id_value_type option").each(function()
+			{
+				field_type_list_new.push({
+		    			        			'label' : $(this).text(),
+		    			        			'value' : $(this).val(),
+		    			        	})
+			});
+			$("#field-value-type-text").multiselect('dataprovider', field_type_list_new)
+		});
+        function setSameServerType(form){
+        	
+        	var server_id = $("#id_server :selected").val()
+        	var config_id = $("#id_config :selected").val()
+        	
+			var data = {}
+			data["server_id"] = server_id
+			data["config_id"] = config_id
+			
+			data["has_same_server_type"] = true
+			data["include_all_servers"] = $('#id_include_all_servers').prop("checked")
+
+			$.ajax({
+		        url : "/configModifier/ajax",
+		        type : "GET",
+		        dataType: "json",
+		        data : data,
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{	        		
+			        	var jsonData = responseDataObject.responseJSON
+						var delay = ''
+						var priority = ''
+						var	server_names = ''
+						$('#servers_same_type').text('')
+						
+						if(jsonData.hasOwnProperty('delay')){
+							delay = jsonData['delay'] 
+			        	}
+			        	if(jsonData.hasOwnProperty('priority')){
+			        		priority = jsonData['priority'] 
+			        	}
+			        	if(jsonData.hasOwnProperty('server_names')){
+			        		server_names = jsonData['server_names']     		
+			        	}
+			        	var content = '&nbsp;&nbsp;Priority: ' + priority + '<br/>' + '&nbsp;&nbsp;Delay: ' + delay + ' minutes' + '<br/>' + "&nbsp;&nbsp;Servers: " + jsonData['server_names']
+			   /*      	$('#servers_same_type').append('Priority: ' + priority)
+			        	$('#servers_same_type').append('Delay: ' + delay + ' minutes')
+			        	$('#servers_same_type').append("\<" + jsonData['server_names'] + "\>")	 */	        	
+			        	$('#servers_same_type').html(content)
+			        	/* $("#servers_same_type").css("text-indent","1em"); */
+			        	dialogconfirm(form);
+		        	}
+			});
+        }
+		function checkTabServer(){
+			var hasValue = false
+			var hasTimer = false
+			var has_value_type = true
+			var listValue= $('#id_field_value_list :selected').val()
+			if (/^\d+$/.test(listValue))
+				hasValue = true
+			if(hasValue) {
+				$("#change_id_value").show()
+			} else {
+				$("#change_id_value").hide()
+			}
+							
+			//var value = $('#id_field_value').val()
+			//Allow to input empty value
+			if ($("#id_field_value").attr("style") == "visibility:  visible")
+				hasValue = true
+			var timer = $('#id_timer').val()
+				
+			if (/^\d+$/.test(timer) && 0<parseInt(timer) && parseInt(timer)<241)
+				hasTimer = true
+			if($("#id_value_type").attr("style") == null) {
+				if(!/^\d+$/.test($('#id_value_type :selected').val())){
+					has_value_type = false
+				}
+			}
+			if(hasValue && hasTimer && has_value_type)
+				disableBtn("", false)
+			else
+				disableBtn("", true)
+			if($("#id_environment option:selected").text().startsWith('AWS')) {
+				$("#id_include_all_servers").prop("checked", true )
+				$("#id_include_all_servers").attr("onclick","return false")
+			}else{
+				$("#id_include_all_servers").removeAttr("onclick")
+			}
+		}
+		function checkTabFeature(){
+			var hasValue = false
+			var hasTimer = false
+			var hasFeature = false
+			var hasEnv = false
+			var feature =  $('#id_feature_f :selected').val()			
+			if (/^\d+$/.test(feature))
+				hasFeature = true
+			var environment =  $('#id_environment_f :selected').val()			
+			if (/^\d+$/.test(environment))
+				hasEnv = true
+				
+			var listValue= $('#id_field_value_list_f :selected').val()
+			if (/^\d+$/.test(listValue))
+				hasValue = true
+			var value = $('#id_field_value_f').val()
+			if (value != "")
+				hasValue = true
+			var timer = $('#id_timer_f').val()
+			if (/^\d+$/.test(timer) && 0<parseInt(timer) && parseInt(timer)<241)
+				hasTimer = true
+			if(hasValue && hasTimer && hasFeature && hasEnv)
+				disableBtn("feature", false)
+			else
+				disableBtn("feature", true)
+		}
+
+		function disableBtn(type="", disabled=true) { 
+			if (type == "feature")
+				$("#btn_make_request_f").attr("disabled", disabled);
+			else
+				$("#btn_make_request").attr("disabled", disabled);
+		} 
+		function dialogconfirm(form){
+
+	        $( "#dialog-confirm" ).dialog({
+	            resizable: false,
+	            height: "auto",
+	            width: "auto",
+	            modal: false,
+	            buttons: {
+	              Yes: function() { 
+	            	  $( this ).dialog( "close" );
+					  form.submit();
+	              },
+	              No: function() {
+	                  $( this ).dialog( "close" );
+	              }
+	            }
+	          });
+
+	   }
+	   function dialogError(errorCode, errorMessage){
+            
+			$('#error_code').text("Error Code: " + errorCode)
+			$('#error_message').text("Message: " + errorMessage)
+			
+	        $( "#dialog-error" ).dialog({
+	            resizable: false,
+	            height: "auto",
+	            width: "auto",
+	            modal: false,
+	            buttons: {
+	              Close: function() {
+	                  $( this ).dialog( "close" );
+	              }
+	            }
+	          });
+
+	   }
+		
+		$('#changeValueModal').on('show.bs.modal', function (event) {
+			  var button = $(event.relatedTarget) // Button that triggered the modal
+			  var title = button.data('title') // Extract info from data-* attributes
+			  // If necessary, you could initiate an AJAX request here (and then do the updating in a callback).
+			  // Update the modal's content. We'll use jQuery here, but you could use a data binding library or other methods instead.
+			  var modal = $(this)
+			  modal.find('.modal-title').text(title)
+			  $("#field-value-text").val("")
+			})
+			
+		 function saveChange(){
+			var data = {}
+			if($("#changeValueModalLabel").text() == "Change selected value"){
+				data['action_id'] = "change_value"
+				data['id'] = $("#id_field_value_list").val()
+			} else {
+				data['action_id'] = "add_value"
+				data['id'] = $("#id_config").val()
+			}
+			
+			data['value'] = $("#field-value-text").val()
+			data['value_type_id'] = $("#field-value-type-text").val()
+			data['csrfmiddlewaretoken'] = '{{ csrf_token }}'
+			
+			$.ajax({
+		        url : "/configModifier/ajax/",
+		        type : "POST",
+		        dataType: "json",
+		        data : data,
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		processConfigDropDown($("#id_config :selected"), null, null)     						     		    					    
+		        	},
+			 	error: function(data){
+			 			  dialogError(data.status,data.responseJSON.error)
+			 	     }
+		        	
+			});
+		}
+	</script>
+{% endblock %}
+
+{% block panel %}
+
+	  <div id="dialog-confirm" title="Confirmation" style="display: none;" >
+		  <p>	
+               Please make sure the config is deployed on below servers:
+               <p id="servers_same_type" >
+			   </p>  
+			        
+			   <b>Do you want to make request on all the above servers?</b>
+		  </p>
+
+	 </div>
+	 
+	 <div id="dialog-error" title="Error message" style="display: none;" >
+		  <p>	    
+               <p id="error_code">
+			   <p id="error_message">
+		  </p>
+
+	 </div>
+
+	 <div>
+		
+		<div class="modal fade" id="changeValueModal" tabindex="-1" role="dialog" aria-labelledby="changeValueModalLabel" aria-hidden="true">
+		  <div class="modal-dialog" role="document">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <h5 class="modal-title" id="changeValueModalLabel">Action</h5>
+		      <!--   <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+		          <span aria-hidden="true">&times;</span>
+		        </button> -->
+		      </div>
+		      <div class="modal-body">
+		        <form>
+		          <div class="form-group">
+		            <label for="field-value-text" class="col-form-label">Value:</label>
+		            <textarea class="form-control" id="field-value-text"></textarea>
+		          </div>
+		          <div class="form-group" id="field-value-type-text-div">
+		            <label for="field-value-type-text" class="col-form-label">Value Type:</label>
+		            <select class="form-control" id="field-value-type-text"></select>
+		          </div>
+		        </form>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+		        <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="saveChange()">Save</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+		</div>
+    <div>
+    
+    <div class="panel with-nav-tabs panel-default">
+        <div class="panel-heading">
+             <ul class="nav nav-tabs">
+                 <li class="active"><a href="#tab_server" data-toggle="tab">Select by server</a></li>
+                 <li><a href="#tab_feature" data-toggle="tab">Select by feature</a></li>
+             </ul>
+        </div> 
+        <div class="panel-body">
+            <div class="tab-content">
+                <div class="tab-pane fade in active" id="tab_server">
+                 <input id="pre_value_type" type='hidden' value='NoneSelected'>
+                 <form id="id_make_request_by_server_form" action=" {% url 'configModifier_makeRequest' %}" class="form-horizontal" method="post" >
+				    {% csrf_token %}
+				 	{{ formset.management_form }}
+				     <input type="hidden" name="submit_type" value="server" />	  
+				 	 {% for field in form %}	           			
+				       <div class="form-group">
+				           <label class="col-sm-3 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+				            {% if field.is_hidden %} hidden {% endif %}>{{ field.label }}: </label>
+				           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+				           				{% elif field|field_type == 'CheckboxInput' %} col-sm-4 checkbox-align
+				           				{% elif field|field_type == 'Textarea' %} col-sm-10
+				           				{% else %} col-sm-2 				           
+				           				{% endif %} 				           			           
+				           ">
+				           {% if field|field_type == 'CheckboxInput' %} 
+				               {{ field }}
+				           {% elif field|field_type == 'Textarea' %} 
+				               {{ field|attr:"style:width:700px;height:150px;" }}
+				           {% elif field|field_type == 'Select' %} 
+							  	{{ field|attr:"class:form-control"|attr:"size:10"}}
+							  	 {% if field.label == 'Field value' %} 
+							  	     {% if perms.ConfigModifier.add_entry %} 
+								  	     <div id="change_field_value">
+									  	     <a id="add_id_value"  
+									            title="Add another value" data-toggle="modal" data-target="#changeValueModal" data-title="Add a new value">
+									            <img src="/static/admin/img/icon-addlink.svg" alt="Add"/>
+								        	</a>
+									  	 	 <a id="change_id_value"
+									            title="Change selected value" data-toggle="modal" data-target="#changeValueModal" data-title="Change selected value">
+								             	<img src="/static/admin/img/icon-changelink.svg" alt="Change"/>
+								        	</a> 
+							        	</div>
+						        	{% endif %}  
+								{% endif %} 
+							  		      
+				           {% else %} 
+							   {{ field|attr:"class:form-control" }} 
+				           {% endif %} 	
+				           </div>
+				           {% if field.errors %}
+					           <span class="help-block col-sm-4">
+					                {% for error in  field.errors %}{{ error }}{% endfor %}
+					           </span>
+				           {% endif %}
+				       </div>
+							
+				   {% endfor %}
+				  
+				   <div class="form-group">
+				       <div class="col-sm-offset-3 col-sm-10">
+				   		<button id="btn_make_request" type="submit" class="btn btn-primary btn-sm" disabled>Make Request</button>
+				   	</div>
+				   </div>
+				 </form>
+                              
+          </div>
+              
+     <div class="tab-pane" id="tab_feature">
+                
+         <form action=" {% url 'configModifier_makeRequest' %}" class="form-horizontal" method="post">
+   				{% csrf_token %}
+ 				{{ formset.management_form }}
+			 	 <input type="hidden" name="submit_type" value="feature" />	
+			 	 {% for field in featureForm %}	           			
+			       <div class="form-group">
+			           <label class="col-sm-3 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}>{{ field.label }}: </label>
+			           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+			           				{% elif field|field_type == 'CheckboxInput' %} col-sm-10 checkbox-align
+			           				{% elif field|field_type == 'Textarea' %} col-sm-10
+			           				{% else %} col-sm-2 				           
+			           				{% endif %} 				           			           
+			           ">
+			           {% if field|field_type == 'CheckboxInput' %} 
+			               {{ field }}
+			           {% elif field|field_type == 'Textarea' %} 
+			               {{ field|attr:"style:width:700px;height:150px;" }}
+			           {% else %} 
+						   {{ field|attr:"class:form-control" }} 
+			           {% endif %} 	
+			           </div>
+			           {% if field.errors %}
+				           <span class="help-block col-sm-4">
+				                {% for error in  field.errors %}{{ error }}{% endfor %}
+				           </span>
+			           {% endif %}
+			       </div>
+						
+			   {% endfor %}
+			  
+			   <div class="form-group">
+			       <div class="col-sm-offset-3 col-sm-10">
+			   		<button id="btn_make_request_f" type="submit" class="btn btn-primary btn-sm" disabled>Make Request</button>
+			   	</div>
+			   </div>
+		</form>
+       </div>
+
+      </div>
+     </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+

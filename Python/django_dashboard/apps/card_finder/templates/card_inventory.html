@@ -1,0 +1,64 @@
+
+<html>
+<head>
+<script type='text/javascript'
+	src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+</head>
+<body>
+	<center>
+		<br /> <br /> <br /> {% load staticfiles %} <img id="logo_img"
+			src="{% static 'image/green_logo.gif' %}"
+			style="height: 107px; width: 108px; border-width: 0px;"> <br />
+		<h2 style="color: Green; font-weight: bold;">Test Environment
+			Card Inventory</h2>
+		<a href="{% url 'card_finder' %}">Card Finder</a> <br /> <br /> <br />
+
+		<h3 align="center">
+			Please enter required info:
+			<h3 />
+			<form id="mainForm" action="{% url 'card_inventory' %}" method="post">
+				{% csrf_token %}
+				<table align="center" border="1" cellspacing="0" cellpadding="3">
+					<tr>
+						<td><b>Environment</b></td>
+						<td>{{ form.environment }}</td>
+					</tr>
+					<tr>
+						<td><b>Product</b></td>
+						<td>{{ form.product }}</td>
+					</tr>
+					<tr>
+						<td colspan="2" align="center"><input type="submit"
+							name="GetCard" value="Submit">
+						</td>
+					</tr>
+				</table>
+				<input type="hidden" id="load_products" name='load_products' value="">
+			</form>
+			<br /> <br /> 
+			{% if error %}
+				<span style=color:red >{{ error.errorReason }}</span> 
+			{% endif %}
+			{% if output %}
+			<table align="center" border="1" cellspacing="0" cellpadding="3">
+				<tr>
+					<td><b>Product</td>
+					<td><b>Count</td>
+				</tr>
+				{% for card in output %}
+				<tr>
+					<td>{{ card.product }}</td>
+					<td>{{ card.count }}</td>
+				</tr>
+				{% endfor %}
+			</table>
+			{% endif %}
+	</center>
+	<script>
+		$("#id_environment").change(function() {
+			$("#load_products").val("true");
+			$("#mainForm").submit();
+		});
+	</script>
+</body>
+</html>

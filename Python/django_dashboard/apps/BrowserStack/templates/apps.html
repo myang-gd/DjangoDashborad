@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block header %}
+{% endblock header %}
+
+{% block title %}
+BrowserStack Uploaded Apps
+{% endblock title %}
+
+{% block head_block %}
+    <link href="https://cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.css"/>
+{% endblock %}
+
+{% block script_block %}
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.js"></script>
+    <script type="text/javascript">
+
+        $(document).ready( function () {
+            $('#app_list').DataTable( {
+                'dom': 'ifrt',
+                paging: false,
+                'order': [[ 3, 'desc'], [ 0, 'asc' ]],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "filter by any text in table"
+                }
+            });
+        } );
+
+        $('button.filter').on('click', function(event) {
+            var selected = event.target.classList.contains('btn-warning');
+            $('button.btn.filter').removeClass('btn-warning');
+            if (!selected)
+                event.target.classList.add('btn-warning');
+            updateSearch();
+        });
+
+        $('button.filter_os').on('click', function(event) {
+            var selected = event.target.classList.contains('btn-info');
+            $('button.btn.filter_os').removeClass('btn-info');
+            if (!selected)
+                event.target.classList.add('btn-info');
+            var filter_str = $('.dataTables_filter input').val();
+            filter_str = filter_str.replace('ipa', '').replace('apk', '').trim();
+            updateSearch();
+
+        });
+
+        function updateSearch() {
+            var filter_str = '';
+
+            var selected = $('button.btn.filter.btn-warning');
+            if (selected.size() == 1)
+                filter_str += selected[0].innerText;
+
+            selected = $('button.btn.filter_os.btn-info');
+            if (selected.size() == 1)
+                filter_str += ' ' + selected[0].value + ' ';
+
+            $('#app_list').DataTable().search(filter_str).draw();
+        }
+
+        $('#chooseFileBtn').on('change', function(event) {
+
+            if (!confirm('Are you sure you want to upload "' + event.target.files[0].name + '" to BrowserStacker?')) {
+                $('#chooseFileBtn').val('');
+                return;
+            }
+            uploadApp(event);
+        });
+
+        function uploadApp (event) {
+
+            var form = new FormData();
+            form.append("file", event.target.files[0], event.target.files[0].name);
+
+            $.ajax({
+                  url: "https://api-cloud.browserstack.com/app-automate/upload",
+                  method: "POST",
+                  timeout: 0,
+                  headers: {
+                    "Authorization": "Basic YXV0b21hdGlvbm1vYmlsZXhFeUVDOjRBaGFYZnhxTVpoenJUY015TXZu",
+                  },
+                  processData: false,
+                  mimeType: "multipart/form-data",
+                  contentType: false,
+                  data: form,
+                  success: function (response)
+                  {
+                    alert("App uploaded successfully:  " + response);
+                    location.reload(true);
+                  },
+                  error: function (response)
+                  {
+                    alert("App upload failed:  " + response);
+                    $("#please_wait_modal").hide();
+                  }
+              });
+        }
+
+        $('button.delete').on('click', function(event) {
+
+            var app_name = $(event.target).closest("tr").find('td:first').text()
+
+            if (confirm(`Remove [${app_name}] from BrowserStack?`)) {
+                deleteApp(event);
+            }
+        });
+
+        function deleteApp (event) {
+            var json = {
+                "action" : "delete",
+                "app_id" : event.target.value
+            };
+
+            $.ajax({
+                type : "POST",
+                url : '{% url 'BrowserStackApps' %}',
+                headers : {
+                        "X-CSRFToken" : "{{ csrf_token }}"
+                    },
+                data: json,
+                success: function (data) {
+                    if (data["Output"] == "Success")
+                    {
+                        alert("App removed");
+                        location.reload(true);
+                    }
+                    else
+                    {
+                        alert("Failed to remove app!");
+                        $("#please_wait_modal").hide();
+                    }
+                }
+            });
+         };
+
+        $(document).ajaxSend(function(){
+            $("#please_wait_modal").show();
+        });
+
+        //$(document).ajaxComplete(function(){
+        //    location.reload(true);
+        //});
+
+    </script>
+{% endblock %}
+
+{% block container_block %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg" style='text-align:center'>
+            <h1>Apps in BrowserStack Automate</h1>
+            <br/>
+
+            {% comment %} -- Replaced by DataTable
+            <form id="mainForm">
+                <div class="form-group">
+                    <div class="form-inline">
+                        <div class="radio">
+                            <label><input type="radio" name="optradio" id="allBtn" checked> All</label>
+                        </div>
+                        &nbsp&nbsp&nbsp
+                        <div class="radio">
+                            <label><input type="radio" name="optradio" id="iosBtn"> iOS</label>
+                        </div>
+                        &nbsp&nbsp&nbsp
+                        <div class="radio">
+                            <label><input type="radio" name="optradio" id="androidBtn"> Android</label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            {% endcomment %}
+
+            <form method="post" enctype="multipart/form-data">
+                    <div class="form-inline">
+                        <div class="form-group">
+                            &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp Choose app to upload:
+                        </div>
+                        <div class="form-group">
+                            <input type="file" id="chooseFileBtn" name="chooseFileBtn" accept=".apk, .ipa">
+                        </div>
+                    </div>
+            </form>
+            <br/>
+
+<!--             <div class="form-inline">
+                <div class="form-group">
+                    Filter by:&nbsp&nbsp&nbsp
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg filter">AmazonFlex</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg filter">Go2Bank</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg  filter">GoBank</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg  filter">GreenDot</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg  filter">Turbo</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg  filter">Walmart</button>
+                </div>
+                <div class="form-group">
+                    &nbsp&nbsp&nbsp&nbsp&nbsp
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg filter_os" value="apk">Android</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg filter_os" value="ipa">iOS</button>
+                </div>
+            </div> -->
+			
+            <br/>
+            <br/>
+            {% comment %}
+            <div class="form-inline">
+                <div class="form-group">
+                    <button class="btn btn-lg btn-info filter_os" value="apk">Android</button>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-lg btn-info filter_os" value="ipa">iOS</button>
+                </div>
+            </div>
+            {% endcomment %}
+            <div>
+                <table id="app_list" class='table table-hover table-bordered table-sm table-striped'>
+                    <thead>
+                        <tr>
+                            <th style="text-align:center">Name</th>
+                            <th style="text-align:center">Version</th>
+                            <th style="text-align:center">ID</th>
+                            <th style="text-align:center">Uploaded</th>
+                            <th style="text-align:center"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in app_list %}
+                        <tr>
+                            <td>{{ app.app_name }}</td>
+                            <td>{{ app.app_version }}</td>
+                            <td>{{ app.app_id }}</td>
+                            <td>{{ app.uploaded_at }}</td>
+                            <td>
+                                {% if app.removable == True %}
+                                <button class="btn btn-sm btn-danger delete" type="submit" value="{{ app.app_id }}">X</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <br/>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="progress">
+                    <div
+                            class="progress-bar progress-bar-info progress-bar-striped active"
+                            style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock container_block %}

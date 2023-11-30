@@ -1,0 +1,76 @@
+{% extends 'monitor.html' %}
+
+{% load staticfiles %}
+
+{% load custom_tags %}
+
+{% block head_block %}
+
+{% endblock %}   
+
+{% block title %}schedule_view{% endblock %}
+
+{% block script_block %} 
+	<script type="text/javascript">
+		$(document).ready(function() {	
+			 $("li").each(function (){
+				 if(this.id != null && this.id.indexOf("_tab") != -1) {
+					 if(this.id == 'view_monitors_tab') {
+						 $(this).attr('class', 'active');
+					 } else {
+						 $(this).attr('class', '');
+					 }
+				 }
+			 })
+			 $('#tb_result').on('click', '.clickable-row', function(event) {
+				  $(this).addClass('active').siblings().removeClass('active');
+			 });
+
+		})
+		
+	</script>
+
+{% endblock %}
+
+			   
+{% block tab_content %}
+		{% if schedule_maps %}
+			
+			{% if schedule_maps.items %}
+					<div class="panel-collapse collapse in">
+						<div class="panel-body">	
+							<table class="table table-striped table-bordered sortable" id="tb_result">						
+								<thead>
+							      <tr>
+							        <th>Name</th>
+							        <th>Environment</th>
+							        <th>Enabled?</th>
+							        <th>Owner</th>
+							        <th>Last Run At</th>
+							        <th>Latest Result</th>
+							        <th>Runs</th>
+							      </tr>
+							  	</thead>
+							    <tbody>	    	 
+							      	{% for key, value in schedule_maps.items %}
+
+								      	<tr class="clickable-row">
+								      		<td><a href="{% url 'schedule_monitor' %}?id={{value.id}}" >{{value.name}}</td>
+								      		<td>{{value.environment}}</td>
+								      		<td>{{value.enabled}}</td>
+								      		<td>{{value.owner}}</td>
+								      		<td>{{value.last_run_at}}</td>
+								      		<td>{{value.latest_result}}</td>
+								      		<td><a href="{% url 'view_runs' %}?sid={{value.id}}">Runs</td>
+								      	</tr>
+									
+					 				{% endfor %}
+
+							    </tbody>
+							</table>
+						</div>
+					</div>
+		
+		{% endif %}
+	{% endif %}
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'entry.html' %}
+{% load custom_tags_configmodifier %}
+{% load i18n widget_tweaks %}
+{% load staticfiles %}
+{% block title %}Entry select{% endblock %}
+{% block script_block %} 
+		
+{% endblock %}
+
+{% block panel_header %}
+	Select Node type
+{% endblock %}
+
+{% block panel_content %}
+	<form action=" {% url 'configModifier_entryAdd' %}" class="form-horizontal" method="post">
+	    {% csrf_token %}
+	  	{{ formset.management_form }}
+	  	{{result.file_map.label}}
+	  	 {% for field in form %}	           			
+		       <div class="form-group">
+		           <label class="col-sm-2 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}>{{ field.label }}: </label>
+		           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+		           				{% elif field|field_type == 'CheckboxInput' %} col-sm-10 checkbox-align
+		           				{% elif field|field_type == 'Textarea' %} col-sm-10
+		           				{% else %} col-sm-2 				           
+		           				{% endif %} 				           			           
+		           ">
+		           {% if field|field_type == 'CheckboxInput' %} 
+		               {{ field }}
+		           {% elif field|field_type == 'Textarea' %} 
+		               {{ field|attr:"style:width:700px;height:150px;" }}
+		           {% else %} 
+					   {{ field|attr:"class:form-control" }} 
+		           {% endif %} 	
+		           </div>
+		           {% if field.errors %}
+			           <span class="help-block col-sm-4">
+			                {% for error in  field.errors %}{{ error }}{% endfor %}
+			           </span>
+		           {% endif %}
+		       </div>
+					
+		{% endfor %}
+	   
+	    <div class="form-group">
+	        <div class="col-sm-offset-2 col-sm-10">
+	    		<button type="submit" class="btn btn-primary btn-sm">Next</button>
+	    	</div>
+	    </div>
+	</form>
+
+{% endblock %}
+
+
+

@@ -1,0 +1,589 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block head_block %}
+<!--<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>-->
+<!--<script src="https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js"></script>-->
+
+<!--<script src="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css"></script>-->
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css"></script>-->
+
+
+<!-- Include the plugin's CSS and JS: -->
+<script src="/static/js/jquery.blockUI.js"></script>
+<script src="/static/js/bootstrap-multiselect.js"></script>
+<link rel="stylesheet" href="/static/css/bootstrap-multiselect.css" type="text/css"/>
+
+
+<style>
+		div.bordered {
+		  border: double;
+		}
+		.page-container { margin: 20px; }
+
+</style>
+
+{% endblock %}
+
+{% block title %}Welcome Query View Site{% endblock %}
+
+{% block script_block %}
+<script type="text/javascript">
+	var api_endpoint = "https://gdqatools:8300/api/"
+	//var api_endpoint = "/api/"
+   	var load_success = 1
+
+    $(document).ready(function(){
+    	 $("#msg").val('')
+		 $("#target_dropdown").val('')
+
+        initialize_database_dropdown();
+    	load_query();
+    	if({{read_only}}.toString() == "true")
+    	    disable_fields();
+
+
+	});
+
+    function initialize_database_dropdown(){
+		var target_list = {{target_list|safe}}
+		for (var i = 0; i < target_list.length; i++)
+			$("#database_dropdown").append('<option>' + target_list[i] + '</option>');
+	};
+
+    function initialize_target_dropdown(){
+        //load target database by the database name
+        $.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+        $("#target_dropdown").val('')
+        $.ajax({
+            type: "Post",
+            url:  api_endpoint + "load_database_by_target/",
+            //headers:  {"X-CSRFToken": "{{ csrf_token }}"},
+            data:  {"database": $("#database_dropdown").val()},
+                success: function(data) {
+                    $.unblockUI()
+                    if(data['success'] == true) {
+                        var target_list = data['target_server']
+                        for (var i = 0; i < target_list.length; i++){
+                            var target = JSON.parse(JSON.stringify(target_list[i]));
+                            $("#target_dropdown").append('<option value=' + target['id'] + '>' + target['name'] +' ('+ target['server'] +'/' + target['database'] +')'+ '</option>');
+                        }
+                    } else {
+                        show_error_dialog('Load Target Server Error');
+                    }
+                },
+                error: function(data) {
+                    $.unblockUI()
+                    show_error_dialog('Load Target Server Error');
+                }
+        });
+    }
+
+	//only admin or query owner can edit this query
+    function disable_fields(){
+        $("#name_txt").prop("readonly", true);
+        $("#desc_txt").prop("readonly", true);
+        $("#cat_txt").prop("readonly", true);
+        $("#sql_txt").prop("disabled", true);
+        $("#database_dropdown").prop("disabled", true);
+        //$("#delete_btn").prop("disabled", true);
+        //$("#save_btn").prop("disabled", true);
+        $("#msg_lbl").text(" * Only Admin or query owner can edit this query.");
+    }
+
+
+
+	function load_query(){
+		$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+        $("#result_row").hide()
+
+        $.ajax({
+            type: "POST",
+            url:  api_endpoint + "load_query/",
+            //headers:  {"X-CSRFToken": "{{ csrf_token }}"},
+            data:  {
+                "my_json_data": JSON.stringify({"id": {{ query_id }}})
+                },
+                success: function(data) {
+                    if("true" === data["locked"].toString())
+                        $("#msg_lbl").text($("#msg_lbl").text() + ' And this query is locked, which means it was already used in some test cases.')
+                    $("#name_txt").val(data["name"])
+                    $("#desc_txt").val(data["description"])
+                    $("#cat_txt").val(data["category"])
+                    $("#sql_txt").text(data["sql"])
+                    $("#owner_txt").val(data["owner"])
+                    $('#database_dropdown').val(data["target"])
+                    initialize_target_dropdown()
+                    $('#para_txt').val(detectParams($('#sql_txt').val().trim()));
+                    $("#sql_txt").blur()
+                    $('#share_query').prop('checked', data["share"])
+                    $.unblockUI()
+                },
+                error: function(data) {
+                    $.unblockUI()
+                    show_error_dialog('Load query failed!!');
+                }
+        });
+
+
+
+	};
+
+	function delete_query(){
+		$('#delete_dialog').modal('hide')
+		$.blockUI({message: '<h1>Deleting...</h1>' });
+		$.ajax({
+				type: "POST",
+				url:  api_endpoint + "delete_query/",
+				//headers:  {"X-CSRFToken": "{{ csrf_token }}"},
+				data:  {
+					"my_json_data": JSON.stringify({"id": {{ query_id }}, "login_user": "{{login_user}}"})
+					},
+					success: function(data) {
+						$("#name_txt").val("")
+						$("#desc_txt").val("")
+						$("#cat_txt").val("")
+						$("#sql_txt").text("")
+						$("#owner_txt").text("")
+						$("#owner_txt").val("")
+                        $('#database_dropdown').empty()
+                        $("#target_dropdown").empty()
+                        $('#para_txt').val("");
+                        $('#share_query').prop('checked', true)
+						$.unblockUI()
+					},
+					error: function(data) {
+						$.unblockUI()
+						show_error_dialog('Delete query failed : ' + String(data['error']));
+					}
+		});
+	};
+
+	function update_query(){
+		var name = $("#name_txt").val().trim()
+		var desc = $("#desc_txt").val().trim()
+		var cat = $("#cat_txt").val().trim()
+		var sql = $("#sql_txt").val().trim()
+		var database = []
+		var selected_db = $("#database_dropdown option:selected").text()
+        if(0 === name.length || 0 === desc.length || 0 === sql.length){
+			alert('Query name, description and sql cannot be empty!');
+			return
+		}
+
+		var request_data = {
+			"id": {{ query_id }},
+			"name": name,
+			"description": desc,
+			"sql": sql,
+			"category": cat,
+			"share": $('#share_query').is(":checked"),
+			"locked": false,
+			"database": selected_db,
+			"user": "{{ user.username }}",
+			"update": "True",
+			"login_user": "{{ user.username }}",
+		}
+
+		$.blockUI({message: '<h1>Saving...</h1>' });
+
+		$.ajax({
+				type: "POST",
+				url:  api_endpoint + "save_query/",
+				//headers:  {"X-CSRFToken": "{{ csrf_token }}"},
+				data:  {"my_json_data": JSON.stringify(request_data)},
+					success: function(data) {
+						if(String(data['success']) == "true"){
+						    $.unblockUI();
+							}
+						else{
+						    $.unblockUI();
+							show_error_dialog('Save query script failed : ' + String(data['error']));
+					    }
+					},
+					error: function(data) {
+					    $.unblockUI();
+						show_error_dialog('Save query script failed: ' + String(data['error']));
+					}
+		});
+
+	};
+
+
+    $("#sql_txt").blur(function(){
+       $('#para_txt').val(detectParams($('#sql_txt').val().trim()));
+       var patt = new RegExp(/.*(delete |update ).*/gi);
+       var is_ud = patt.test($('#sql_txt').val())
+       $("#execute_btn").prop('disabled', is_ud)
+    });
+
+    $("#database_dropdown").change(function() {
+        $("#target_dropdown").empty()
+        initialize_target_dropdown()
+	});
+
+	$("#execute_btn").on('click', {
+		csrf_token : "{{ csrf_token }}"
+	}, function(event) {
+		//Execut Query
+		var my_view_model = {'query_script': '', 'db_id': '', 'params': {}};
+		var selected_params = {}
+
+		var sql = $("#sql_txt").val().trim()
+		var database = []
+		var my_params_str = $("#para_txt").val().trim()
+        if(0 === sql.length ){
+			show_error_dialog('sql cannot be empty!');
+			return
+		}
+		var query_json = JSON.stringify({{query_data}})
+
+		var database_id = $('#target_dropdown option').filter(':selected').val()
+
+		my_view_model['query_script'] = sql;
+		my_view_model['db_id'] = database_id;
+		my_view_model['login_user'] = "{{login_user}}";
+
+		if(0 === my_params_str.length) {
+			my_view_model['params'] = {}
+		}
+		else {
+			if(isJson(my_params_str))
+				my_view_model['params'] = JSON.parse(my_params_str)
+			else{
+				show_error_dialog('Parameters is not JSON format!');
+				return;
+			}
+		}
+
+		var data = JSON.stringify(my_view_model);
+
+		$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+
+        $("#result_row").show()
+		$('#result').empty()
+		$('#result').append('<table id="exec_result" class="dataTable table-bordered table-responsive-md table-striped" style="width:100%;overflow:auto;"></table>')
+
+		$.ajax({
+		type: "Post",
+		url:  api_endpoint + "debug_query/",
+		//headers:  {"X-CSRFToken": event.data.csrf_token},
+		data:  {"my_json_data": data},
+			success: function(data) {
+				$.unblockUI()
+				if(data['success'] == true) {
+					if(data['error'] == null || data['error'] == '') {
+						present_exec_result_table(data['data']);
+					} else {
+						show_warning_dialog('Execute Succeeded: ' + data['error']);
+					}
+				} else {
+					show_error_dialog('Execute Failed: ' + data['error']);
+				}
+				$('#debug_dialog').modal('hide');
+			},
+			error: function(data) {
+				$.unblockUI()
+				show_error_dialog('Execute Failed: ' + data['error']);
+			}
+		});
+	});
+
+function present_exec_result_table(data){
+		var tableHeaders='';
+		var columns = []
+		var values = []
+		$.each(data[0], function(key, val){
+			tableHeaders += "<th>" + key + "</th>";
+			columns.push({'title': key})
+		});
+
+		$.each(data, function(i, val_mp){
+			var item = []
+			$.each(val_mp, function(key, val){
+				item.push(val)
+			});
+			values.push(item)
+		});
+
+		exec_result_table = $('#exec_result').dataTable({
+			data: values,
+			columns: columns,
+			"scrollY": 200,
+            "scrollX": true,
+            "bLengthChange": false,
+		});
+	}
+
+	function show_error_dialog(message) {
+		$('#error_message').html('<p>'+ message +'</p>');
+		$('#error_dialog').modal();
+	}
+
+	function show_warning_dialog(message) {
+		$('#warning_message').html('<p>'+ message +'</p>');
+		$('#warning_dialog').modal();
+	}
+
+	function show_delete_dialog() {
+		$('#delete_dialog').modal();
+	}
+
+	function show_debug_dialog() {
+		$('#debug_dialog').modal();
+	}
+
+	function isJson(str) {
+    	try {
+        	JSON.parse(str);
+    	} catch (e) {
+        	return false;
+    	}
+    	return true;
+	}
+
+	function detectParams(str) {
+	    var params_reg = /%{[A-Za-z0-9_-]+}/gm;
+	    var result = {};
+	    if(str != null && str != '') {
+	        var params = [];
+	        var res = str.match(params_reg);
+	        while(res = params_reg.exec(str))
+            {
+                params.push(res[0]);
+            }
+	        if (params != null) {
+	            var i = 0
+	            var key_patt = /[A-Za-z0-9_-]+/;
+	            for (i = 0; i < params.length; i++) {
+                    var key = key_patt.exec(params[i]);
+                    if(key != null) {
+                        result[key] = "";
+                    }
+                }
+                selected_params = result
+	        }
+	    }
+	    return JSON.stringify(result);
+	}
+
+	function getArrDiff(arr1, arr2) {
+        return arr1.concat(arr2).filter(function(v, i, arr) {
+            return arr.indexOf(v) === arr.lastIndexOf(v);
+        });
+    }
+
+    $('#save_as_btn').click(function() {
+          window.open("{% url 'register' %}?copy_from_id={{ query_id }}");
+    });
+
+</script>
+{% endblock %}
+
+{% block container_block %}
+<div class="page-container">
+<div class="row bordered">
+	<b>Edit Your Query</b>
+	<table class="table bordered" style="margin: 20px;">
+    <tbody>
+      <tr>
+		  <td><label>Name:</label></td>
+        <td>
+			<div class="row">
+				<input  class="col-sm-4"　type="text"  class="vTextField" maxlength="128" id="name_txt" title="please input the query name">
+				<label class="col-sm-5" id="msg_lbl" style="color:red"></label>
+			</div>
+			<div class="row">
+				<label style="align:left">Name is identity for the query, good name is easy to be find. Example: <font color="blue">GetCardBySerialNumber</font></label>
+			</div>
+		</td>
+      </tr>
+      <tr>
+		<td><label>Description:</label></td>
+        <td>
+			<div class="row">
+				<input class="col-sm-4" type="text"  class="vTextField" maxlength="128" id="desc_txt" title="please input the query description">
+			</div>
+			<div class="row">
+				<label style="align:left" style="padding-left:170px;font-style: italic;">Please identify what kind of data will get through the query. Example: <font color="blue">It will get all card information by given serial number from NEC database</font></label>
+			</div>
+		</td>
+      </tr>
+      <tr>
+		<td><label>Category:</label></td>
+        <td>
+			<div class="row">
+				<input class="col-sm-4" list="categories" type="text" class="vTextField" maxlength="128" id="cat_txt" title="please input the category query belongs to">
+			<datalist id="categories">
+				{% for cat in category_list %}
+			  <option value="{{ cat }}">
+				{% endfor %}
+			</datalist>
+			</div>
+			<div class="row">
+				<label style="align:left">Please give the category for the query. Example: <font color="blue">Card, NEC, SerialNbr</font></label>
+			</div>
+		</td>
+      </tr>
+ 	  <tr>
+		<td><label>Sql:</label></td>
+		<td>
+			<div class="row">
+				<textarea class="col-sm-7" type="text" rows="15" class="vTextField" id="sql_txt"  title="please input the sql"></textarea>
+			</div>
+			<div class="row">
+				<label style="align:left">Please enter the full query string with parameters, the parameter format could be %{parameter_name}. Example: <font color="blue">SELECT A.* FROM Card A WITH (NOLOCK) WHERE A.SerialNbr = '%{serialNbr}'</font></label>
+			</div>
+		</td>
+	  </tr>
+
+	<tr>
+		<td><label>DataBase:</label></td>
+		<td>
+			<div class="row">
+				<select class="col-sm-7" id="database_dropdown"  title="please select the database the query can be executed"></select>
+			</div>
+			<div class="row">
+				<label style="align:left">Please select database that this query can execute.</label>
+			</div>
+		</td>
+	</tr>
+
+	<tr>
+		<td><label>Owner:</label></td>
+		<td>
+			<div class="row">
+				<input class="col-sm-4" type="text"  class="vTextField" maxlength="128" readonly id="owner_txt"  title="this is read-only, shows the owner/creator of this query">
+			</div>
+			<div class="row">
+				<label style="align:left">Owner is readonly and it's the login user name.</label>
+			</div>
+		</td>
+	</tr>
+
+	<tr>
+		<td></td>
+		<td>
+			<div class="row">
+				<label class="checkbox-inline" style="padding-left:15px"><input type="checkbox" value="true" id="share_query">&nbsp;Share</label>
+			</div>
+			<div class="row">
+				<label style="align:left">Check it will share your query.</label>
+			</div>
+		</td>
+	</tr>
+    </tbody>
+  </table>
+
+
+	<div>
+		<label class="col-sm-1"></label>
+		<label class="col-sm-4"></label>
+		<button class="col-sm-1" id="debug_btn" type="submit" class="btn btn-primary btn-sm" title="Execute the query" onclick="show_debug_dialog()">Debug</button>
+
+		{% if read_only != 'true' %}
+		<button class="col-sm-1" id="save_btn" type="submit" class="btn btn-primary btn-sm" onclick = "update_query()" title="Save the query">Save</button>
+		<button class="col-sm-1" id="delete_btn" title="Delete the query" onclick="show_delete_dialog()">Delete</button>
+		{% endif %}
+		<button class="col-sm-1" id="save_as_btn" type="submit" class="btn btn-primary btn-sm" title="Copy the query and save as a new one">Copy</button>
+	</div>
+
+ </div>
+
+ <div class="row bordered" id="result_row">
+	 <label for="exec_result"><h6>Query Results:</h6></label>
+	 <div id="result" class="container-fluid dataTables_wrapper no-footer">
+		 <table id="exec_result" class="dataTable table-bordered table-responsive-md table-striped"
+						   style="width:100%;overflow:auto;">
+		  </table>
+	 </div>
+</div>
+</div>
+<!-- Modal -->
+<div class="modal" role="dialog" tabindex="-1" id="error_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h6 class="modal-title">Error Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<strong>Error!</strong>
+  					<h6 id="error_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="warning_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+                <h6 class="modal-title">Warning Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-warning">
+  					<strong>Warning!</strong>
+  					<h6 id="warning_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="delete_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+                <h6 class="modal-title">Warning Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+  					<strong>Warning!</strong>
+  					<h6 id="confirm_message">Do you want to delete this query?</h6>
+					<a type="button" class="btn btn-primary" href="javascript:delete_query();">Yes</a>
+                    <a type="button" class="btn btn-outline-primary waves-effect" data-dismiss="modal">No</a>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<div class="modal" role="dialog" id="debug_dialog" >
+	<div class="modal-dialog" >
+		<div class="modal-content">
+			<div class="modal-header">
+                <h6 class="modal-title">Debug Parameter Input Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" >
+				<div class="input-group" style="width:100%;">
+					<div id="target">
+						<label for="target_dropdown">Target Server:</label>
+						<select id="target_dropdown" style="width: 300px;" title="please select the target server the query will be executed"></select>
+					</div>
+					<div>
+						<label for="para_txt">Parameters</br>(Json Format):</label>
+						<textarea id="para_txt" style="width: 300px;" title="please input the parameters before executing."></textarea>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-primary" id="execute_btn">Execute</button>
+				<button type="button" class="btn btn-outline-primary" data-dismiss="modal">Close</button>
+
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}

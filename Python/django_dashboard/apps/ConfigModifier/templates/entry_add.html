@@ -1,0 +1,443 @@
+{% extends 'entry.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block title %}Add entry{% endblock %}
+{% block script_block %} 
+		<script type="text/javascript">
+			function addEntryRow(){
+				
+				var elmnt = document.getElementById("entryRows").getElementsByClassName('form');
+				if(elmnt.length < 1) return false;				
+				var lastChild = elmnt[elmnt.length-1]
+			
+				var lastChildParentNodeId = $(lastChild).find("[name*='parent_id']")
+				var lastChildParentNodeLabel = $(lastChild).find("[for*='parent_id']")
+						
+				lastChildParentNodeId.val('')
+				lastChildParentNodeId.hide()
+				lastChildParentNodeId.remove()
+				lastChildParentNodeLabel.hide()
+				
+				var cln = lastChild.cloneNode(true);
+				var totalFormsValue = $('#id_form-TOTAL_FORMS').val();
+				cln.setAttribute("id", "form-" + totalFormsValue);
+				
+				var parentNodeAttrLabel = $(cln).find("[for*='attribute']") 
+			    var parentNodeAttr = $(cln).find("[name*='attribute']") 
+			    var parentNodeAttrValueLabel = $(cln).find("[for*='field_value']") 
+			    var parentNodeAttrValue = $(cln).find("[name*='field_value']") 
+			    var parentNodeNewFieldLabel = $(cln).find("[for*='remove_field']") 
+			    var parentNodeNewField = $(cln).find("[name*='remove_field']") 
+			    var parentNodeNewAttrLabel = $(cln).find("[for*='remove_attribute']") 
+			    var parentNodeNewAttr = $(cln).find("[name*='remove_attribute']") 
+			    
+			    var parentNodeAddValueButton = $(cln).find("[id*='add_id_value']")
+			    var parentNodeDeleteValueButton = $(cln).find("[id*='delete_id_value']")
+			    
+			    parentNodeAddValueButton.remove()
+			    parentNodeDeleteValueButton.remove()
+			    
+			    parentNodeAttrLabel.hide()
+			    parentNodeAttr.val('')
+				parentNodeAttr.hide()
+				parentNodeAttr.remove()
+				
+				parentNodeAttrValueLabel.hide()
+				parentNodeAttrValue.val('')
+				parentNodeAttrValue.hide()
+				parentNodeAttrValue.remove()
+				
+			    parentNodeNewFieldLabel.hide()
+				parentNodeNewField.attr('checked', false)
+				parentNodeNewField.hide()
+				parentNodeNewField.remove()
+				
+			    parentNodeNewAttrLabel.hide()
+				parentNodeNewAttr.attr('checked', false)
+				parentNodeNewAttr.hide()
+				parentNodeNewAttr.remove()
+			    
+				var textAreaElement = cln.getElementsByTagName("textarea");
+				
+				for(var i = 0; i < textAreaElement.length; i++) {
+
+				    if(textAreaElement[i].id.indexOf('id_form') == 0) {
+				    	textAreaElement[i].setAttribute("id", textAreaElement[i].id.replace(/\d+/g, totalFormsValue));
+				    	textAreaElement[i].setAttribute("name", textAreaElement[i].name.replace(/\d+/g, totalFormsValue));
+				    } 
+				}
+				
+
+				var formInputElements = cln.getElementsByTagName("input");				
+				for(var i = 0; i < formInputElements.length; i++) {
+
+				    if(formInputElements[i].id.indexOf('id_form') == 0) {
+				    	formInputElements[i].setAttribute("id", formInputElements[i].id.replace(/\d+/g, totalFormsValue));
+				    	formInputElements[i].setAttribute("name", formInputElements[i].name.replace(/\d+/g, totalFormsValue));
+				    } 
+				}
+		        
+				
+				var formFieldLableElements = cln.getElementsByClassName("control-label");				
+				for(var i = 0; i < formFieldLableElements.length; i++) {
+			
+				    if (formFieldLableElements[i].getAttribute("for").indexOf('id_form') == 0) {
+				    	formFieldLableElements[i].setAttribute("for", formFieldLableElements[i].getAttribute("for").replace(/\d+/g, totalFormsValue));
+				    }
+				}
+				
+				document.getElementById("entryRows").appendChild(cln);
+				document.getElementById("entryRows").appendChild(document.createElement("hr"));
+				
+				$('#id_form-TOTAL_FORMS').val((parseInt(totalFormsValue)+1).toString());	
+		
+			}
+			function removeEntryRow(){
+				var entryRows = document.getElementById("entryRows");
+				var elmnt = entryRows.getElementsByClassName('form');
+				if(elmnt.length < 2) return false;				
+				var lastChild = elmnt[elmnt.length-1]
+				var lastChildOfChildParentNodeId = $(elmnt[elmnt.length-2]).find("[name*='parent_id']")
+				entryRows.removeChild(lastChild);
+				
+				var  lineSeparator = entryRows.getElementsByTagName("hr")
+				if(lineSeparator.length > 0 )  {
+					entryRows.removeChild(lineSeparator[lineSeparator.length-1])
+				}
+				var totalFormsValue = $('#id_form-TOTAL_FORMS').val();
+				$('#id_form-TOTAL_FORMS').val((parseInt(totalFormsValue)-1).toString());	
+				
+				lastChildOfChildParentNodeId.prop('disabled', false)
+			}
+			
+			var id_key = "id_form-0-field_value"
+			var name_key = "form-0-field_value"
+			function addValues() {		
+				
+				var last = $('[id^="' + id_key + '"]').last().parent().parent()
+				
+				var clone = $('[id^="' + id_key + '"]').last().parent().parent().clone()
+
+				var count =  $('[id^="' + id_key + '"]').length
+
+				clone.find('[for^="' + id_key + '"]').text(clone.find('[for^="' + id_key + '"]').text().replace(/\d+/g, (count+1)))
+
+				var forvalue = clone.find('[for^="' + id_key + '"]').attr("for")
+
+				clone.find('[for^="' + id_key + '"]').attr("for", forvalue.substring(0,forvalue.lastIndexOf("-")+1 ) + (count +1 ))
+
+				var id = clone.find('[id^="' + id_key + '"]').attr("id")
+
+				clone.find('[id^="' + id_key + '"]').attr("id",id.substring(0,id.lastIndexOf("-")+1 ) + (count +1 ))
+
+				var name = clone.find('[name^="' + name_key + '"]').attr("name")
+
+				clone.find('[name^="' + name_key + '"]').attr("name",name.substring(0,name.lastIndexOf("-")+1 ) + (count +1 ))
+
+				clone.insertAfter(last)
+			}
+			
+			function removeValue() {
+				var count =  $('[id^="' + id_key + '"]').length
+				if(count > 1) {
+					$('[id^="' + id_key + '"]').last().parent().parent().remove()
+				}
+			}
+			
+			function addTarget(){
+				$('input[name=submit_type]').val("preview");
+			}
+			function setSubmitType(){
+				$('input[name=submit_type]').val("submit");
+			}
+			var btn = null;
+			$(document).ready(function() {
+
+				if ("{{preview | safe}}" != "" && "{{block_submit | safe}}" != "Yes") {
+					dialogconfirm();
+				}
+				var forms = entryRows.getElementsByClassName('form');
+				$('#id_form-TOTAL_FORMS').val(forms.length);	
+				
+				$('#add_entry_form').submit(function(e) {
+				    e.preventDefault(); // don't submit multiple times
+				    this.submit(); // use the native submit method of the form element
+				    //$('#add_entry_form').removeAttr('target')
+				});
+				if("{{change_need_validate | safe}}" != "True"){
+					$("#id_need_validate").attr("onclick","return false")
+				}
+				
+				 hideParentFields() 
+				 
+				 $('#dialog-confirm').css('padding-left',$('.sidebar').width()+50)
+				 $('#dialog-confirm').css('padding-top',$('.navbar').height())
+			});
+            function hideParentFields() {
+            	var elmnt = document.getElementById("entryRows").getElementsByClassName('form');
+				if(elmnt.length < 1) return false;				
+				var lastChild = elmnt[elmnt.length-1]
+							
+			    for(var i = 1; i < elmnt.length; i++) {
+			    	
+					var parentNodeAttrLabel = $(elmnt[i]).find("[for*='attribute']") 
+				    var parentNodeAttr = $(elmnt[i]).find("[name*='attribute']") 
+				    var parentNodeAttrValueLabel = $(elmnt[i]).find("[for*='field_values']") 
+				    var parentNodeAttrValue = $(elmnt[i]).find("[name*='field_values']") 
+				    var parentNodeNewFieldLabel = $(elmnt[i]).find("[for*='remove_field']") 
+				    var parentNodeNewField = $(elmnt[i]).find("[name*='remove_field']") 
+				    var parentNodeNewAttrLabel = $(elmnt[i]).find("[for*='remove_attribute']") 
+				    var parentNodeNewAttr = $(elmnt[i]).find("[name*='remove_attribute']") 
+				    
+				    parentNodeAttrLabel.hide()
+				    parentNodeAttr.val('')
+					parentNodeAttr.hide()
+					
+					parentNodeAttrValueLabel.hide()
+					parentNodeAttrValue.val('')
+					parentNodeAttrValue.hide()
+				
+				    parentNodeNewFieldLabel.hide()
+					parentNodeNewField.attr('checked', false)
+					parentNodeNewField.hide()
+					
+				    parentNodeNewAttrLabel.hide()
+					parentNodeNewAttr.attr('checked', false)
+					parentNodeNewAttr.hide()
+			    }
+				
+				if(elmnt.length > 1) {
+					var firstParentNodeId = $(elmnt[0]).find("[name*='parent_id']")
+					var firstParentNodeLabel = $(elmnt[0]).find("[for*='parent_id']")					
+					firstParentNodeId.val('')
+					firstParentNodeId.hide()
+					firstParentNodeLabel.hide()
+				}	
+				
+				
+            }
+			function dialogconfirm(){
+
+		        $( "#dialog-confirm" ).dialog({
+		            resizable: true,
+		            height: "auto",
+		            width: 1400,
+		            modal: false,
+		            buttons: {
+		              Yes: function() { 
+		            	  $('#btn_submit').prop("disabled", false)
+		            	  $( this ).dialog( "close" );
+		              },
+		              No: function() {
+		                  $( this ).dialog( "close" );
+		              }
+		            }
+		          });
+
+		   }
+		   $('#add_entry_form').change(function(){$('#btn_submit').prop("disabled", true)});
+		</script>
+{% endblock %}
+
+{% block panel_header %}
+	Configure Node Details
+{% endblock %}
+
+{% block panel_content %}
+	  <div id="dialog-confirm" title="Do you want to insert these entries?" style="display: none;" >
+	  	 <p class="errornote">
+			{% if messages %}
+				<ul class="messages">
+					{% for message in messages %}
+					    <li {% if message.tags %} class="{{ message.tags }}" {% endif %}><b>{{ message }}</b></li>
+					{% endfor %}
+				</ul>
+			{% endif %}
+		  </p>
+		  {% if resultList %}
+			  <p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 90px 0;"></span>
+			  			   Please check the preview result carefully to avoid inserting invalid data.	<br>		
+			               <p>
+			               1. 'Database Entries Preview' provides detailed record info it's going to insert based on your previous inputs.<br>
+						   2. 'New Add' is 'No' means to reuse existing record and 'ID' should be the actual id, 'Yes' means to insert new one and 'ID' should be None.<br>
+						   3. 'Item Parameters' lists values of each fields extracted from previous inputs.<br>
+						   4. 'Final Xml Preview' show you what the eventual xml looks like based on your previous inputs.<br>
+						   </p>       
+					       <b>Are you sure you want to insert below entries to database?</b>
+			  </p>
+		  {% else %}
+			   <p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 90px 0;"></span>
+			  			   Please check the preview result carefully to avoid inserting invalid data.	<br>		
+			               <p>
+						   1. 'Final Xml Preview' show you what the eventual xml looks like based on your previous inputs.<br>
+						   </p>       
+					       <b>Are you sure you want to insert entries to database?</b>
+			  </p>
+		  {% endif %}
+		  {% if resultList %}	
+		  	 <div class="panel panel-default" style="overflow:auto" >
+				<div class="panel-heading" align="center"  >
+				    <h1 class="panel-title">
+						<a data-toggle="collapse" href="#db_entries_preview">Database Entries Preview</a>
+				    </h1>
+				</div>		
+				<div id="db_entries_preview" class="panel-collapse collapse in">
+					<div class="panel-body">	
+						<table class="table table-striped table-bordered sortable" id="tb_result">						
+							<thead>
+						      <tr>
+						        <th>Item Parameters</th>
+						        <th>ID</th>
+						        <th>Type</th>
+						        <th>New Add?</th>
+						      </tr>
+						  	</thead>
+						    <tbody>	    	 
+						      	{% for result in resultList %}
+				
+							      	<tr class="clickable-row">
+								      	<td>{% if isPreview == False %}<a href="{{result.link}}"> {% endif %}{{result.label}}</td>
+							      		<td>{{result.id}}</td>
+							      		<td>{{result.type}}</td>
+							      		<td>{% if result.new_add == True %}Yes {% else %} No {% endif %}</td>
+							      	</tr>
+								
+				 				{% endfor %}
+				
+						    </tbody>
+						</table>
+					</div>
+				</div>	
+			</div>	
+	      {% endif %}
+	      {% if preview_xml %}	
+		  	 <div class="panel panel-default" style="overflow:auto" >
+				<div class="panel-heading" align="center"  >
+				    <h1 class="panel-title">
+						<a data-toggle="collapse" href="#xml_preview">Final Xml Preview</a>
+				    </h1>
+				</div>		
+				<div id="xml_preview" class="panel-collapse collapse in">
+					<div class="panel-body">	
+						 <pre>{{preview_xml}}</pre>
+					</div>
+				</div>	
+			</div>	
+	      {% endif %}
+	</div>
+	{% if formset.total_error_count %}
+	    <ul>
+	    {% for dict in formset.errors %}
+	        {% for error in dict.values %}
+	        	<li class="error">{{ error }}</li>
+	        {% endfor %}
+	    {% endfor %}
+	    </ul>
+	{% endif %}
+	<form id = "add_entry_form"  action="{% url 'configModifier_entryAdd' %}" class="form-horizontal" method="post">
+	    {% csrf_token %}
+
+	  	<div class="fieldWrapper" id="the_post">
+		  	<input type="hidden" name="submit_type" value="submit" />	  
+		  	<input type="hidden" name="node_type_add" value="{{node_type_add}}" />
+		  	 {{ formset.management_form }}
+		  	{% for field in CommonForm %}			
+			       <div class="form-group">
+			           <label class="col-sm-2 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+				           {% if field.is_hidden %} hidden {% endif %}>
+				           {{ field.label }}: </label>
+			           <div class=" {% if field.name == 'local_path' %} col-sm-7 
+			           				{% elif field.name == 'share_path' %} col-sm-7  	
+			           				{% elif field|field_type == 'NumberInput' %} col-sm-1
+			           				{% elif field|field_type == 'CheckboxInput' %} col-sm-10 checkbox-align
+			           				{% elif field|field_type == 'Textarea' %} col-sm-10
+			           				{% else %} col-sm-2 				           
+			           				{% endif %} 				           			           
+			           ">
+			           {% if field|field_type == 'CheckboxInput' %} 
+			               {{ field }}
+			           {% elif field|field_type == 'Textarea' %} 
+			               {{ field|attr:"style:width:700px;height:150px;" }}
+			           {% else %} 
+						   {{ field|attr:"class:form-control" }} 
+			           {% endif %} 
+
+			           </div>
+			           {% if field.errors %}
+				           <span class="help-block col-sm-4">
+				                {% for error in  field.errors %}{{ error }}{% endfor %}
+				           </span>
+			           {% endif %}
+			       </div>
+						
+			{% endfor %}
+		    <hr/>	
+		   <div id="entryRows">
+			   {% for form in formset %}
+			       <div id="form-{{forloop.counter|add:-1}}" class="form">
+					   {% with forloop.counter|add:-1 as form_index %}    
+						   {% for field in form %}         		           			
+						       <div class="form-group">
+						           <label class="col-sm-2 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+							            {% if field.is_hidden %} hidden {% endif %}>
+							           	{{ field.label }}: </label>
+						           <div class=" {% if field.name == 'local_path' %} col-sm-7 
+						           				{% elif field.name == 'share_path' %} col-sm-7  	
+						           				{% elif field|field_type == 'NumberInput' %} col-sm-1
+						           				{% elif field|field_type == 'CheckboxInput' %} col-sm-10 checkbox-align
+						           				{% elif field|field_type == 'Textarea' %} col-sm-10
+						           				{% else %} col-sm-2 				           
+						           				{% endif %} 
+			           			    ">
+							           
+							           {% if field|field_type == 'CheckboxInput' %} 
+							               {{ field }}
+							           {% elif field|field_type == 'Textarea' %} 
+							               {{ field|attr:"style:width:700px;height:150px;" }}            
+							           {% else %} 
+										   {{ field|attr:"class:form-control" }} 
+							           {% endif %} 	
+							           </div>
+							           {% if field.errors %}
+								           <span class="help-block col-sm-4">
+								                {% for error in  field.errors %}{{ error }}{% endfor %}
+								           </span>
+							           {% endif %}
+						       </div>				    
+						    {% endfor %}
+								        
+					 {% endwith %}
+						 <div class="form-group">
+						 	<div class="col-sm-offset-2 col-sm-10">				 
+						        <a class="related-widget-wrapper-link add-related" id="add_id_value"
+						            onclick="addValues()" style="text-decoration:none;cursor:pointer;"
+						            title="Add another attribute value">
+						            <img src="/static/admin/img/icon-addlink.svg" />Add value
+						        </a>
+						        &nbsp;
+						        <a class="related-widget-wrapper-link change-related" id="delete_id_value"
+						            onclick="removeValue()" style="text-decoration:none;cursor:pointer;"
+						            title="Remove the last attribute value">
+						            <img src="/static/admin/img/icon-deletelink.svg" alt="Delete"/> Delete value
+					        	</a>   
+							</div>	
+						</div>	
+				</div>    
+				   <hr/>
+			    {% endfor %}
+		    </div>
+	    </div>
+	    <div class="form-group">
+	        <div class="col-sm-offset-2 col-sm-10">
+	        	<button type="submit" class="btn btn-primary btn-sm" onclick="addTarget()" >Preview</button>
+	    		<button id="btn_submit" type="submit" class="btn btn-primary btn-sm" onclick="setSubmitType()" disabled>Submit</button>
+	    		<button type="button" onclick="addEntryRow()" class="btn btn-primary btn-sm" {% if enableParent == False %} style="visibility:hidden;" {% endif %}>Add Parent</button>
+	    		<button type="button" onclick="removeEntryRow()" class="btn btn-primary btn-sm" {% if enableParent == False %} style="visibility:hidden;" {% endif %}>Remove Parent</button>
+	    	</div>
+	    </div>
+	</form>
+{% endblock %}
+
+
+

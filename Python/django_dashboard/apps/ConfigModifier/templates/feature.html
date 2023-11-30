@@ -1,0 +1,169 @@
+{% extends 'entry.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block title %}feature change{% endblock %}
+
+{% block panel %}
+
+<script type="text/javascript">
+		var  featureValueOld = ''
+		var ignoreServerValueOld = true
+		$(document).ready(function() {
+			 $('#id_environment').prepend('<option value="NoneSelected" selected=true>--Select Environment--</option>'); 
+			 $('#id_server').prepend('<option value="NoneSelected" >--Select Server--</option>'); 
+			 $('#id_file').prepend('<option value="NoneSelected" >--Select File--</option>'); 
+			 $('#id_config').prepend('<option value="NoneSelected" >--Select Config--</option>'); 
+			 
+			 if ("{{st_enabled |safe}}" == "True" )
+			 	$('#id_server_type').prepend('<option value="NoneSelected" >--Select Server Type--</option>'); 
+			 else
+				$('#id_server_type').prepend('<option value="NoneSelected" selected=true>--Select Server Type--</option>');  
+			 
+			  $('#id_environment').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: function(option, element, checked){processEnvironmentDropDown(option, element, checked);disableSave();},
+			   })
+
+			  $('#id_server_type').multiselect({
+				 enableFiltering: true,
+	             enableCaseInsensitiveFiltering: true,
+				 onChange: processServerTypeDropDown,
+			  })
+				 
+			 $('#id_server').multiselect({
+				enableFiltering: true,
+	            enableCaseInsensitiveFiltering: true,
+				onChange: function(option, element, checked){processServerDropDown(option, element, checked);disableSave();},
+			 })
+			 
+			 $('#id_file').multiselect({
+				enableFiltering: true,
+	            enableCaseInsensitiveFiltering: true,
+				onChange: function(option, element, checked){processFileDropDown(option, element, checked);disableSave();},
+			 })
+			  $('#id_config').multiselect({
+				enableFiltering: true,
+	            enableCaseInsensitiveFiltering: true,
+				onChange: processConfigDropDown,
+			 })	
+			 $('#id_feature_name').change(function(){checkFeature();checkConfig() });	
+			 $('#id_ignore_server').change(function(){checkIgnoreServer();checkConfig() });	
+			 featureValueOld = $('#id_feature_name').val()
+			 ignoreServerValueOld = $('#id_ignore_server').is(':checked')		
+			 
+		 });
+		function processConfigDropDown(option, element, checked) {
+			checkConfig()		
+		} 
+		function checkConfig(){
+			var configValue = $("#id_config :selected").val()	
+			if (/^\d+$/.test(configValue)) {
+				$("#btn_save").attr("disabled", false);
+			} else {
+				$("#btn_save").attr("disabled", true);
+			}
+		} 
+		function checkIgnoreServer(option, element, checked) {
+			var ignoreServerValue= $('#id_ignore_server').is(':checked')
+			if (ignoreServerValue != ignoreServerValueOld){
+				$("#btn_save").attr("disabled", false);
+			} else {
+				$("#btn_save").attr("disabled", true);
+			}
+		}
+		function checkFeature(option, element, checked) {
+			var featureValue = $('#id_feature_name').val()	
+			if (featureValue !='' && featureValue != featureValueOld){
+				$("#btn_save").attr("disabled", false);
+			}  else {
+				$("#btn_save").attr("disabled", true);
+			}
+		}
+		function disableSave() {
+			$("#btn_save").attr("disabled", true);
+		} 
+		function checkInputs() 
+		{
+			disableSave() 
+			var configValue = $("#id_config :selected").val()			
+			var serverValue = $("#id_server :selected").val()
+			var fileValue = $("#id_file :selected").val()
+			var featureValue = $('#id_feature_name').val()
+			var environmentValue = $('#id_environment').val()
+			var ignoreServerValue= $('#id_ignore_server').is(':checked')
+			if (featureValue !='' && featureValue != featureValueOld){
+				$("#btn_save").attr("disabled", false);
+			} 
+			if (ignoreServerValue != ignoreServerValueOld){
+				$("#btn_save").attr("disabled", false);
+			}
+		}
+		
+	   
+</script>
+	
+		<div id="dialog-add-feature" title="Adding Feature" >
+		
+			 <div class="col-md-12">
+			  	<div class="btn-group" role="group" aria-label="...">
+					  <button type="button" class="btn btn-default">  <a href="{% url 'configModifier_team' pk=team_id %}">Team Home</a></button>
+					
+				</div>
+	            <div class="panel panel-default">
+	            	
+	                <div class="panel-body">
+	         
+                        <form id='id_add_feature_form' action="{{ request.path }}" class="form-horizontal" method="post">
+						    {% csrf_token %}
+						  	{{ formset.management_form }}
+						  	<input type="hidden" name="addFeature" value="" />	
+						  	 {% for field in form %}	        			
+							       <div class="form-group">
+							           <label class="col-sm-3 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+							           {% if field.is_hidden %} hidden {% endif %}>{{ field.label }}: </label>
+							           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+							           				{% elif field|field_type == 'CheckboxInput' %} col-sm-4 checkbox-align
+							           				{% elif field|field_type == 'Textarea' %} col-sm-10
+							           				{% elif field|field_type == 'Select' %} col-sm-4
+							           				{% else %} col-sm-5		           
+							           				{% endif %} 				           			           
+							           ">
+							           {% if field|field_type == 'CheckboxInput' %} 
+							               {{ field }}
+							           {% elif field|field_type == 'Textarea' %} 
+							               {{ field|attr:"style:width:700px;height:150px;" }}
+							           {% elif field|field_type == 'TextInput' %} 
+							           	   {{ field|attr:"class:form-control" }} 
+							           {% else  %} 
+										   {{ field|attr:"class:form-control"|attr:"style:width:auto;" }} 						   
+							           {% endif %} 	
+							           </div>
+							           {% if field.errors %}
+								           <span class="help-block col-sm-4">
+								                {% for error in  field.errors %}{{ error }}{% endfor %}
+								           </span>
+							           {% endif %}
+							       </div>
+										
+							{% endfor %}
+							    <div class="form-group">
+							        <div class="col-sm-offset-3 col-sm-10">
+							        	<button id='btn_save' type="submit" class="btn btn-primary btn-sm" disabled>Save</button>
+							    	</div>
+							    </div>						   						   
+						  </form>
+	                </div>
+	            </div>
+	        </div>
+	        	  
+	    </div>
+	   
+	  
+	        	  
+{% endblock %}
+
+
+
+

@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block head_block %}
+	<link href="{% static 'css/bootstrap-multiselect.css' %}" rel="stylesheet" />
+	<script src="{% static 'js/bootstrap-multiselect.js' %}"></script>
+	<link href="{% static 'plugins/tabulator-master/css/tabulator.min.css' %}" rel="stylesheet">
+	<script type="text/javascript" src="{% static 'plugins/tabulator-master/js/tabulator.min.js' %}"></script>
+	<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
+
+<style>
+    .multiselect-container > li > a > label.checkbox
+    {
+        width: 350px;
+    }
+    .btn-group > .btn:first-child
+    {
+        width: 350px;
+    }
+</style>
+{% endblock %}
+
+{% block title %}Automation Coverage View{% endblock %}
+
+{% block script_block %}
+<script type="text/javascript">
+$(document).ready(function(){
+		   $('#choosed_project').multiselect({
+				nonSelectedText: 'Select Projects...',
+				enableFiltering: true,
+<!--				templates: {-->
+<!--					li: '<li><a href="javascript:void(0);"><label class="pl-2"></label></a></li>',-->
+<!--					filter: '<li class="multiselect-item filter"><div class="input-group m-0 mb-1"><input class="form-control multiselect-search" type="text"></div></li>',-->
+<!--					filterClearBtn: '<div class="input-group-append"><button class="btn btn btn-outline-secondary multiselect-clear-filter" type="button"><i class="fa fa-close"></i></button></div>'-->
+<!--				},-->
+				includeSelectAllOption: true,
+				enableCaseInsensitiveFiltering: true,
+				maxHeight: 450,
+				maxWidth: 350,
+			});
+
+			coverageTable();
+		});
+
+function coverageTable(){
+	var ds = JSON.parse("{{ coverage|escapejs }}");
+
+	var table = new Tabulator("#example-table", {
+		height:"500px",
+		data:ds,
+		dataTree:true,
+		dataTreeStartExpanded:false,
+		columns:[
+		{title:"Project/Suite", field:"name", width:200, responsive:0, formatter:function(cell, formatterParams){
+							var jid = cell.getValue()
+							var rx = /(.*)\[(.*)\](.*)/g;
+							var arr = rx.exec(jid);
+							if ( arr[1] == 'P') {
+								return "<a href='https://gdcqatestrail01/testrail/index.php?/projects/overview/" + arr[2] + "' target='_blank'>" + arr[3] +" </a>"
+							}else{
+								return "<a href='https://gdcqatestrail01/testrail/index.php?/suites/view/" + arr[2] + "' target='_blank'>" + arr[3] +" </a>"
+							}
+						}
+		}, //never hide this column
+		{//create column group
+			title:"P4,5",
+			columns:[
+				{title:"Automated", field:"P4,5_Auto", width:110},
+				{title:"Manual", field:"P4,5_NotAuto", width:90},
+				{title:"Not Automatable", field:"P4,5_CantAuto", width:150},
+				{title:"Coverage", field:"P4,5_Coverage", width:100, formatter:"progress", formatterParams:{
+					color:[ "red", "orange" , "green"],
+					legendColor:"#000000",
+					legendAlign:"center",
+					legend:function(value){return value + "%"},
+				}},
+			],
+		},
+		{//create column group
+			title:"P3,2,1",
+			columns:[
+				{title:"Automated", field:"P3,2,1_Auto", width:110},
+				{title:"Manual", field:"P3,2,1_NotAuto", width:90},
+				{title:"Not Automatable", field:"P3,2,1_CantAuto", width:150},
+				{title:"Coverage", field:"P3,2,1_Coverage", width:120, formatter:"progress", formatterParams:{
+					color:[ "red", "orange" , "green"],
+					legendColor:"#000000",
+					legendAlign:"center",
+					legend:function(value){return value + "%"},
+				}},
+			],
+		},
+		{title:"Total Coverage", field:"Coverage", width:150, formatter:"progress", formatterParams:{
+					color:[ "red", "orange" , "green"],
+					legendColor:"#000000",
+					legendAlign:"center",
+					legend:function(value){return value + "%"},
+				}},
+		],
+	});
+}
+
+/* downloading the report generated.
+ */
+
+function exportToExcel()
+{
+    var jsonObject = JSON.parse("{{ coverage|escapejs }}");
+
+    var csv = convertToCSV(jsonObject);
+
+    var exportedFilenmae = 'coverage_export.csv';
+
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    if (navigator.msSaveBlob) { // IE 10+
+        navigator.msSaveBlob(blob, exportedFilenmae);
+    } else {
+        var link = document.createElement("a");
+        if (link.download !== undefined) { // feature detection
+            // Browsers that support HTML5 download attribute
+            var url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", exportedFilenmae);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+}
+
+
+function convertToCSV(objArray) {
+    var array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+    var str = 'sep=,' + '\r\n' + 'Project/Suite,P45_Automated,P45_Manual,P45_NotAutomated,P45_Coverage,P321_Automated,P321_Manual,P321_NotAutomated,P321_Coverage,Total Coverage\r\n';
+
+    for (var i = 0; i < array.length; i++) {
+    	var jid = array[i]['name']
+		var rx = /(.*)\[(.*)\](.*)/g;
+		var arr = rx.exec(jid);
+
+     	str += arr[3] + ',';
+     	str += array[i]['P4,5_Auto'] + ',';
+     	str += array[i]['P4,5_NotAuto'] + ',';
+     	str += array[i]['P4,5_CantAuto'] + ',';
+     	str += array[i]['P4,5_Coverage'] + ',';
+     	str += array[i]['P3,2,1_Auto'] + ',';
+     	str += array[i]['P3,2,1_NotAuto'] + ',';
+     	str += array[i]['P3,2,1_CantAuto'] + ',';
+     	str += array[i]['P3,2,1_Coverage'] + ',';
+     	str += array[i]['Coverage'] + '\r\n';
+
+		var array_sub = array[i]['_children']
+		for (var j = 0; j < array_sub.length; j++) {
+			var jid = array_sub[j]['name']
+			var rx = /(.*)\[(.*)\](.*)/g;
+			var arr = rx.exec(jid);
+			str += '    ' + arr[3] + ',';
+			str += array_sub[j]['P4,5_Auto'] + ',';
+			str += array_sub[j]['P4,5_NotAuto'] + ',';
+			str += array_sub[j]['P4,5_CantAuto'] + ',';
+			str += array_sub[j]['P4,5_Coverage'] + ',';
+			str += array_sub[j]['P3,2,1_Auto'] + ',';
+			str += array_sub[j]['P3,2,1_NotAuto'] + ',';
+			str += array_sub[j]['P3,2,1_CantAuto'] + ',';
+			str += array_sub[j]['P3,2,1_Coverage'] + ',';
+			str += array_sub[j]['Coverage'] + '\r\n';
+        }
+    }
+    return str;
+}
+
+</script>
+{% endblock %}
+
+
+{% block container_block %}
+	<div class="container-fluid">
+		<form class="container-fluid" action="{% url 'coverage' %}" >
+			<label for="choosed_project" class="mr-sm-2 font-weight-bold">Automation Coverage:</label>
+			<select class="custom-select" id="choosed_project" multiple="multiple" name="selectedProjects">
+				{% for item in projects %}
+				<option value="{{item.id}}" {% if item.id in selected_projects %} selected="selected" {% endif %}>{{item.name}}</option>
+				{%endfor%}
+			</select>
+			<input type="checkbox" id="is_spec" name ="is_spec" {% if is_spec %} checked {% endif %}>&nbsp; Regression Test Case Only For Web,BUX-Web,Mobile App and Native App Projects &nbsp;</td>
+            <input type="checkbox" id="is_lm" name ="is_lm"  {% if is_lm %} checked {% endif %} >&nbsp;Current Release </td>
+			<button id="btn_search" type="submit" class="btn btn-primary mb-2" >Search</button>
+            <button type="button"
+											id="exportButton"
+											class="btn btn-default btn-secondary"
+											onclick="exportToExcel()"
+											>
+											<span class="glyphicon glyphicon-save-file"></span>
+											Export CSV
+									</button>
+		</form>
+		<br>
+		<div id="example-table"></div>
+
+		<br>
+		<div>
+			<span class="fa fa-star" style="font-style: italic; padding-right: 10px; color: blue; ">&nbsp;&nbsp;Coverage = Automated / (Automated + Manual) </span><br>
+			<span class="fa fa-star" style="font-style: italic; padding-right: 10px; color: blue; ">&nbsp;&nbsp;For Web,BUX-Web,Mobile App and Native App Projects Just Calculate Regression Test Case Only If Option Checked</span>
+
+		</div>
+	</div>
+{% endblock %}

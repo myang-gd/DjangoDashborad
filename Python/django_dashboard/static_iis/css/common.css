@@ -1,0 +1,71 @@
+ul.big { line-height:30px }
+button.small {
+     height: 30px;
+}
+.span_inline{
+   float:right;
+   width:20%;
+   text-align:center;
+}
+.progress_inline {
+   width:80%;
+   float:left;
+}
+
+.checkbox-align {
+  padding-top: 7px;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+
+.errornote { margin-right:auto; margin-left:auto; text-align:center; font-size:20px; color:red;}
+.error{color:#a94442;background-color:#f2dede;border-color:#ebccd1}
+.warning{color:#8a6d3b;background-color:#fcf8e3;border-color:#faebcc}
+.success{color:#3c763d;background-color:#dff0d8;border-color:#d6e9c6}
+.info{color:#31708f;background-color:#d9edf7;border-color:#bce8f1}
+.debug{color:#31708f;background-color:#d9edf7;border-color:#bce8f1}
+
+body { 
+	margin-top: 10vh;/* To fix nav bar overlapping content */
+	/*background-color: #E9F0D8;*/
+} 
+
+.bg-green { 
+  		background-color: #99CB33; /* Green */
+  		color: #ffffff;
+}
+
+.navbar { 
+	background-color: #99CB33; /* Green */
+}
+
+.navbar li a, .navbar { 
+	color: #fff; 
+}
+
+
+.split.split-horizontal.well,.gutter.gutter-horizontal {
+	height: 100%;
+	float: left;
+}
+
+.navbar-nav li a:hover, .navbar-nav li.active a {
+ 		 	color: #fff;
+  		background-color: #EFA843; /* orange */
+}
+
+.navbar-nav li a:hover, .navbar-nav li.active a, .navbar-nav li ul li a:hover, .navbar-nav li ul li.active a {
+				color: #fff;
+				background-color: #EFA843; /* orange */
+			}
+			
+
+.navbar, .navbar-nav li ul, .navbar li.dropdown.open a.dropdown-toggle { 
+	background-color: #99CB33; /* Green */
+}
+
+h1 {
+	color: #24922B;
+	text-align:center;
+}	
+	

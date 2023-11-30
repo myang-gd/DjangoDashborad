@@ -1,0 +1,456 @@
+{% extends 'schedule.html' %}
+
+{% load staticfiles %}
+
+{% load custom_tags %}
+
+{% block head_block %}
+
+	<script type="text/javascript" src="/static/admin/js/vendor/jquery/jquery.js"></script>
+	<script type="text/javascript" src="/static/admin/js/jquery.init.js"></script>
+	<script type="text/javascript" src="/static/admin/js/admin/RelatedObjectLookups.js"></script>
+	<script type="text/javascript" src="/admin/jsi18n/"></script>
+
+{% endblock %}    
+
+{% block title %}Schedule_Result{% endblock %}
+
+{% block script_block %} 
+	
+	{{block.super}}
+	
+	<script type="text/javascript">
+		   
+	    $(function(){
+		  $('.request-popup-button').click(function(e){
+		    	e.preventDefault()
+		    	$('#requestPopup').dialog({
+		    			modal: true,
+		    			width: 1400,
+		    			height: 650
+		    	}).dialog('open').load(this.href)
+		  })
+		})
+		function toggle(source) {
+			checkbox_prefix = source.id.replace("_CheckBox","")
+			$('div').each(function(){
+				if( this.id == checkbox_prefix ) {
+		        	$(this).find(':checkbox').each(function(){
+						this.checked = source.checked;	
+					});				  
+		        }
+		    });				
+		}		
+		$(document).ready(function() {
+			 $("#environmentId").multiselect("refresh");	 
+			 $("#individualServerId").multiselect("deselectAll");	
+			 $("#vipId").multiselect("deselectAll");
+
+			 if($("th").length == 0){
+				$("#create_schudule_Button").attr("disabled","disabled")			
+			 }
+
+			 if("{{schedule_id}}" != ""){
+				 document.getElementById("create_schudule_Button").disabled = true;
+				 $('.row-select').add('.row-select-all').each(function(){
+					 this.checked = true
+				 });
+			 } else {
+				 document.getElementById("save_schudule_Button").disabled = true;
+				 document.getElementById("remove_schudule_Button").disabled = true;
+			 }
+			 if("{{schedule_name | safe}}" != ""){
+				 document.getElementById("schedule_name_id").value = "{{schedule_name | safe}}"
+			 }
+			 if("{{schedule_desc | safe}}" != ""){
+				 document.getElementById("schedule_desc_id").value = "{{schedule_desc | safe}}"
+			 }	
+			 if("{{interval_id | safe}}" != ""){
+				 interval_select = document.getElementById("id_interval")
+				 if( interval_select != null ) {
+					 for(i = 0; i < interval_select.length; i++) {
+						 interval_option = interval_select[i];
+					       if (interval_option.value == "{{interval_id | safe}}") {
+					    	   interval_option.selected = true
+					       }
+					     }
+				 }
+			 }
+			 if("{{cron_id | safe}}" != ""){
+				 crontab_select = document.getElementById("id_crontab")
+				 if( crontab_select != null ) {
+					 for(i = 0; i < crontab_select.length; i++) {
+						 crontab_option = crontab_select[i];
+					       if (crontab_option.value == "{{cron_id | safe}}") {
+					           crontab_option.selected = true
+					       }
+					     }
+				 }
+			 }
+			 if("{{schedule_owner | safe}}" != ""){
+				 document.getElementById("schedule_owner_id").value = "{{schedule_owner | safe}}"
+			 }
+			 if("{{schedule_threshold | safe}}" != ""){
+				 document.getElementById("threshold_id").value = "{{schedule_threshold | safe}}"
+			 }
+		})
+		function create_edit_schedule(source) {
+			
+			var threshold = document.getElementById('threshold_id').value
+			if(threshold != null && threshold != '') {
+				if (!(/^(0|[1-9]\d*)$/.test(threshold) && parseInt(threshold) <= 100 )) {
+					alert("Threshold should be an integer between 0 and 100")
+					return false
+				}
+			}
+			var operationList = [] 	
+			$('.row-select').each(function(){
+				if(this.checked == true){
+					operationList.push(document.getElementById(this.id+'_Data').innerText)
+				}
+			});
+			
+			var schedule_name = document.getElementById('schedule_name_id').value
+			var schedule_desc = document.getElementById('schedule_desc_id').value 
+			var interval_select = document.getElementById('id_interval')
+			var interval_id = interval_select.options[interval_select.selectedIndex].value;
+			var cron_select = document.getElementById('id_crontab')
+			var cron_id = cron_select.options[cron_select.selectedIndex].value;
+			var enabled = document.getElementById('schedule_enable_id').checked.toString().toUpperCase()
+			var enable_run_log = document.getElementById('enable_run_log_id').checked.toString().toUpperCase()
+
+			if(operationList.length == 0 || schedule_name == null) {
+				alert("None operations are selected or schedule name is missing")
+				return false
+			}
+			if("{{vip | safe }}" == "[]") {
+				alert("No vips filter are selected")
+				return false
+			}
+			environment = document.getElementById('environment_filter').innerText
+			vip = document.getElementById('vip_filter').innerText
+			individualServer = document.getElementById('individualServer_filter').innerText
+			team = document.getElementById('team_filter').innerText
+			
+			data = { 	'operationList' : operationList, 
+		        		'csrfmiddlewaretoken' : '{{ csrf_token }}' ,
+		        		'schedule_name' : schedule_name ,
+		        		'schedule_desc' : schedule_desc ,
+		        		'threshold'		: threshold,
+		        		'interval_id'   : interval_id,
+		        		'cron_id'       : cron_id,
+		        		'enabled'    	: enabled,
+		        		'enable_run_log': enable_run_log,
+		        		'environment'	: environment,
+		        		'vip'	: vip,
+		        		'individualServer' : individualServer,
+		        		'team' : team
+	        		}
+		    if(source.id == "save_schudule_Button") {
+		    	data['schedule_id'] = document.getElementById('schedule_id_id').value
+		    }
+		    
+			$.ajax({
+		        url : "/healthcheck/schedule_config/",
+		        type : "POST",
+		        dataType: "json",
+		        data : data ,
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		alert("Created or saved schedule successfully!!")
+		        	},
+		        	error: function(jqXHR, textStatus, errorThrown) {
+		        		if(errorThrown == 'Internal Server Error'){
+		        			alert("Failed to create or save schedule, possible reasons: \n 1. Schedule name already exists ")
+		        		} else {
+		        			alert("Failed to create or save schedule due to :" + errorThrown)
+		        		}
+		        	}
+			}); 
+			
+		}
+		
+		function remove_schedule() {
+			
+			var schedule_id = document.getElementById('schedule_id_id').value
+				
+			$.ajax({
+		        url : "/healthcheck/schedule_config/",
+		        type : "POST",
+		        dataType: "json",
+		        data : {  
+		        		'csrfmiddlewaretoken' : '{{ csrf_token }}' ,
+		        		'schedule_id'   : schedule_id ,
+		        		'remove' 		: "true"
+		        		},
+		        success: 
+			        	function(response, result, responseDataObject) 
+			        	{
+				        	var jsonData = responseDataObject.responseJSON
+							success = jsonData['success']
+				        	if(success=='N') {
+				        		alert(jsonData['error'])
+				        	} else {
+			        			alert("Removed schedule successfully!!")
+				        	}
+
+			        	},
+			    error: function(jqXHR, textStatus, errorThrown) {
+			        		alert("Failed to remove schedule due to :" + errorThrown)
+			        	}
+			}); 
+			
+		}
+		
+	</script>
+	
+		
+{% endblock %}
+
+
+{% block body_block %}
+		 {% block message_block %}
+			{{block.super}}
+		 {% endblock %}
+		 {% block tab_header_block %}
+	       	  {{block.super}}
+		 {% endblock %}
+  		 <span id = "environment_filter" style="display: none;">{{ environment | safe }}</span>
+  		 <span id = "vip_filter" style="display: none;">{{ vip  | safe }}</span>
+		 <span id = "individualServer_filter" style="display: none;">{{ individualServer | safe }}</span>
+		 <span id = "team_filter" style="display: none;">{{ team  | safe }}</span>
+		
+		 <div class="tab-content">
+			  <div class="tab-pane fade in active">
+			    </br>
+			   		<div>
+	        			<form id="filter-form" class="form-horizontal" role="form" action="{% url 'schedule_config' %}" method="post">
+							{% block body_block_form_items %}
+								{{ block.super }}
+								<hr/>
+								<div class="form-group">
+									<label class="control-label col-sm-2" for="schedule_name_id">Schedule Name: </label>
+									<div class="col-sm-3">
+										<input type="text" class="form-control" id="schedule_name_id" name="schedule_name">
+										<input type="hidden" class="form-control" id="schedule_id_id" name="schedule_id" value = "{{schedule_id}}">
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label col-sm-2" for="id_interval">Interval: </label>
+									<div class="col-sm-2" >
+										<fieldset class="module aligned extrapretty wide">
+										    <div class="form-row field-interval">
+										        <div>
+											        <div class="related-widget-wrapper ">
+												    	<select id="id_interval" name="interval" class="form-control">
+															<option value="">---------</option>
+															{% if interval_list %}
+																{% for item in interval_list %}
+																	<option value="{{item.id}}" >
+																		{{item.display_name}}
+																	</option>
+																{% endfor %}
+															{% endif %}
+														</select>
+
+														<a class="related-widget-wrapper-link change-related" id="change_id_interval"
+												            data-href-template="/admin/djcelery/intervalschedule/__fk__/change/?_to_field=id&amp;_popup=1"
+												            title="Change selected interval">
+												            <img src="/static/admin/img/icon-changelink.svg" alt="Change"/>
+											        	</a>       
+												        <a class="related-widget-wrapper-link add-related" id="add_id_interval"
+												            href="/admin/djcelery/intervalschedule/add/?_to_field=id&amp;_popup=1"
+												            title="Add another interval">
+												            <img src="/static/admin/img/icon-addlink.svg" alt="Add"/>
+												        </a>  
+   														<a href="http://docs.celeryproject.org/en/v2.3.3/userguide/periodic-tasks.html" target="_blank">
+   															<img src="/static/admin/img/icon-unknown.svg" alt="help"/>
+   														</a>
+											        
+										    		</div>
+										    	</div>
+										    </div>
+										    
+										</fieldset>
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label col-sm-2" for="id_crontab">Crontab: </label>
+									<div class="col-sm-2" >
+										<fieldset class="module aligned extrapretty wide">
+										   <div class="form-row field-crontab">
+										     <div>
+										        <div class="related-widget-wrapper">
+										    		<select id="id_crontab" name="crontab" class="form-control">
+														<option value="" selected="selected">---------</option>
+														{% if cron_list %}
+															{% for item in cron_list %}
+																<option value="{{item.id}}" >{{item.display_name}}</option>
+															{% endfor %}
+														{% endif %}
+													</select>       
+											        <a class="related-widget-wrapper-link change-related" id="change_id_crontab"
+											            data-href-template="/admin/djcelery/crontabschedule/__fk__/change/?_to_field=id&amp;_popup=1"
+											            title="Change selected crontab">
+											            <img src="/static/admin/img/icon-changelink.svg" alt="Change"/>
+											        </a>       
+											        <a class="related-widget-wrapper-link add-related" id="add_id_crontab"
+											            href="/admin/djcelery/crontabschedule/add/?_to_field=id&amp;_popup=1"
+											            title="Add another crontab">
+											            <img src="/static/admin/img/icon-addlink.svg" alt="Add"/>
+											        </a> 
+											        <a href="http://docs.celeryproject.org/en/v2.3.3/userguide/periodic-tasks.html" target="_blank">
+   															<img src="/static/admin/img/icon-unknown.svg" alt="help"/>
+   													</a>  
+												</div>
+											 </div>
+										   </div>
+										    
+										</fieldset>
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label col-sm-2 " for="schedule_enable_id"> Enabled: </label>
+									<div class="col-sm-10 checkbox-align">
+										<input name="schedule_enable" type="checkbox" id ="schedule_enable_id" {% if enabled == True or enabled == "on" %} checked {% endif%}>   
+									</div>
+								</div>
+								<div class="form-group">
+									<label title="Flag to indicate whether need output run log to %systemdrive%\django_dashboard_log\healthcheck_run.log" class="control-label col-sm-2 " for="enable_run_log_id"> Run Log: </label>
+									<div class="col-sm-10 checkbox-align">
+										<input name="enable_run_log_log" type="checkbox" id ="enable_run_log_id" {% if enable_run_log == True or enable_run_log == "on" %} checked {% endif%}>   
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label col-sm-2 " for="schedule_owner_id"> Owner: </label>
+									<div class="col-sm-2">
+										<input name="schedule_owner" type="text" id ="schedule_owner_id" class="form-control" readonly>
+									</div>
+								</div>
+								<div class="form-group">
+									<label  title="Percentage number (0-100, 100 is the default value) used to determine if a run is passed or failed" class="control-label col-sm-2 " for="threshold_id"> Threshold: </label>
+									<div class="col-sm-2">
+										<input name="threshold" type="text" id ="threshold_id" class="form-control">
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label col-sm-2" for="schedule_desc_id">Schedule Description: </label>
+									<div class="col-sm-10">
+										<textarea id="schedule_desc_id" name="schedule_desc" style="width:700px;height:150px;"></textarea>
+									</div>
+								</div>
+								
+								<div class="form-group"> 
+								    <div class="col-sm-offset-2 col-sm-10">
+								      <button id="create_schudule_Button" type="button" class="btn btn-default btn-success" onclick="create_edit_schedule(this)">Create schedule</button>
+								      <button id="save_schudule_Button" type="button" class="btn btn-default btn-success" onclick="create_edit_schedule(this)">Save</button>
+								      <button id="remove_schudule_Button" type="button" class="btn btn-default btn-success" onclick="remove_schedule()">Remove</button>
+								    </div>
+		  						</div>	
+					  		{% endblock %}
+						</form>
+		         	</div>	 
+		      </div>
+		</div>
+		{% if vip_server_operation_map.items %}
+			<hr/>
+			{% for key, value in vip_server_operation_map.items %}
+				{% if value.items %}
+					<div class="panel panel-default panel-success" style="overflow:auto" >
+						<div class="panel-heading" align="center"  >
+						    <h1 class="panel-title">
+						    	<a data-toggle="collapse" href="#{{ key }}">VIP: {{ key }}</a>
+						    </h1>
+						</div>
+						<div id="{{ key }}" class="panel-collapse collapse in">
+							<div class="panel-body">	
+								<table class="table table-striped table-bordered sortable" id="tb_result">						
+									<thead>
+								      <tr>
+								        <th>Environment</th>
+								        <th>Service</th>
+								        <th>Endpoint</th>
+								        <th>Port</th>
+								        <th>Operation(s)</th>
+								        <th data-defaultsort='disabled'>View Request</th>
+								        <th>Timeout</th>
+								        <th>Team</th>
+								        <th data-defaultsort='disabled' >
+								        	<ul class="big">
+									        	<div class="make-switch switch-mini">
+				    									<input type="checkbox" class="row-select-all"  onClick="toggle(this)" id ="{{key}}_CheckBox" >
+												</div>
+											</ul>
+										</th>
+								      </tr>
+						    		</thead>
+								    <tbody>
+								    	  {% for key, value in value.items %}
+									      	<tr>
+									      		<td> {{ environment }} </td>
+									        	<td>{{ key }} </td>
+									        	<td><a href="{{ value.0.endpoint }}" target="_blank">{{ value.0.endpoint }}</a></td>
+								        		<td>{{ value.0.port }}</td>
+								        		<td>
+													{% for operation in value %}
+								        				<ul class="big">
+										        			<li  id="{{key}}-{{operation.name}}OperationListItem">{{ operation.name }}</li>
+														</ul>
+													{% endfor %}
+								        		</td>
+								        			<td>
+								        				<div id="requestPopup" title="Request Message"></div>
+								        				{% for operation in value %}
+								        					<ul class="big">
+									        					<a href="{% url 'view_healtcheck_request' %}?operationId={{operation.id}}" id="{{key}}-{{operation.name}}_request__Link" class="request-popup-button">
+									        						<span></span> Request
+									        					</a>
+								        					</ul>
+								        				{% endfor %}
+								        			</td>
+								        			<td>
+							        				{% for operation in value %}
+								        				<ul  class="big" style="list-style-type:none; text-align:left">
+								        					<li>
+								        						<span id="{{key}}-{{operation.name}}_{{operation.id}}_TimeoutLabel" class="label label-default">{{operation.timeout}}</span>
+								        					<li>
+								        				</ul>
+							        				{% endfor %}
+							        			    </td>
+								        			<td>
+								        				{% for operation in value %}
+									        				<ul  class="big" style="list-style-type:none; text-align:left">
+									        					<li>
+									        						<span id="{{key}}-{{operation.name}}_{{operation.id}}_TeamLabel" class="label label-default">{{operation.teamname}}</span>
+									        					<li>
+									        				</ul>
+								        				{% endfor %}
+								        			</td>
+								        			<td class="bs-checkbox">
+								        				{% for operation in value %}
+								        					<ul class="big">
+									        					<div class="make-switch switch-mini">
+				    												<input type="checkbox" class="row-select" id = "{{key}}-{{operation.name}}_{{operation.id}}_CheckBox">
+				    												<span id = "{{key}}-{{operation.name}}_{{operation.id}}_CheckBox_Data" style="display: none;">{{operation.id}}</span>
+																</div>	
+															</ul>																						
+								        				{% endfor %}
+								        			</td>
+									      	</tr>
+								     	{% endfor %}
+								    </tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				{% endif %}
+			{% endfor %}
+		{% endif %}
+
+	
+
+	
+	{% endblock %}
+	
+

@@ -1,0 +1,1 @@
+java.exe -jar TestRailAPIV2_Exporter-0.0.1-SNAPSHOT-jar-with-dependencies.jar "F:\TestRailBackUp\SuitesBackup" "F:\TestRailBackUp"

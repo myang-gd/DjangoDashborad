@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+ {% block title %} 
+ Customer Configuration
+ {% endblock %}
+<!-- {% load static from staticfiles %}  -->
+{% load staticfiles %}
+ 
+{% block component_datatable %} 
+{% endblock component_datatable %} 
+{% block component_datatable_Initialize %} 
+{% endblock component_datatable_Initialize %} }
+
+{% block head_block %}   
+<script type="text/javascript"
+	src="{% static 'js/customer_finder_config.js' %}"></script>
+<link rel="stylesheet"
+	href="{% static 'plugins/vakata-jstree/themes/default/style.min.css' %}" />
+<script type="text/javascript"
+	src="{% static 'plugins/Split.js-master/split.min.js' %}"></script>
+	
+{% endblock %}
+ 
+ 
+{% block style %}
+
+<style>
+body {
+	padding-top: 70px; /* To fix nav bar overlapping content */
+	/*background-color: #E9F0D8;*/
+}
+
+.bg-green {
+	background-color: #99CB33; /* Green */
+	color: #ffffff;
+}
+
+.navbar {
+	background-color: #99CB33; /* Green */
+}
+
+.navbar li a,.navbar {
+	color: #fff;
+}
+
+.navbar-nav li a:hover,.navbar-nav li.active a {
+	color: #fff;
+	background-color: #EFA843; /* orange */
+}
+
+h1 {
+	color: #24922B;
+	text-align:center;
+}
+
+.gutter {
+	background-color: #eee;
+	background-repeat: no-repeat;
+	background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/vertical.png' %}");
+	cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/horizontal.png' %}");
+	cursor: row-resize;
+}
+
+.split.split-horizontal,.gutter.gutter-horizontal {
+	height: 100%;
+	float: left;
+}
+
+.table {
+	table-layout: fixed;
+}
+
+.td {
+	height: 20px;
+	overflow: hidden;	
+}
+
+#error_message {
+	color: red;
+}
+
+#success_message {
+	color: green;
+}
+
+#page_detail tbody tr+tr td {
+	word-wrap: break-word;
+	word-break: break-all;
+}
+</style>
+
+{% endblock %}
+
+{% block container_block %}
+
+<div class="container-fluid well"
+	style="width: auto; height: 925px; overflow-y: auto; overflow-x: auto;">
+    <h1>Customer Configuration</h1> 
+	<div class="split split-horizontal well" id="leftpanel">
+
+		<div class="form-group">
+			<label for="database">Select DataBase:</label>
+			<select type="database" class="form-control" id="database" placeholder="Select Database" autofocus>
+				<option value="-1"></option>
+				<option value="1">NEC</option>
+				<option value="2">UM</option>
+				<option value="3">AWSGBOS</option>
+			</select>
+			<!-- <div class="form-group"> -->
+				<label for="project">Select Project:</label> <select type="project"
+					class="form-control" id="project" placeholder="Select Project"
+					autofocus>
+					<option value="-1"></option>
+				</select>
+			<!-- </div> -->
+
+			<label for="entity">Select Entity:</label> <select type=""
+				entity""
+				class="form-control" id="entity"
+				placeholder="Select Entity" autofocus>
+				<option value="-1"></option>
+				<option value="CustomerType">Customer Type</option>
+				<option value="ProductMap">Product Map</option>
+				<option value="EmailPrefix">Email Prefix</option>
+				<option value="UserIDPrefix">UserID Prefix</option>
+				<option value="PasswordRule">Password Rule</option>
+			</select>
+		</div>
+
+		<div class="panel panel-primary " id="st_panel">
+			<div class="panel-heading">Customer Type:</div>
+			<div id="custtype_list" class="panel collapse in">
+				<div class="panel-body" style="max-height: 400px;overflow-y: scroll;" id="listcusttype">
+				<input type="radio" name="cust_type" hidden></input>				   
+				</div>                      
+			</div>			
+		</div>		
+			
+	</div>
+
+	<div class="split split-horizontal well" id="middlepanel" height="100">
+
+		<form class="col-md-12 form-horizontal well" role="form">
+
+			<div class="col-md-12" id="CustType_Div">
+
+				<div class="col-md-12 form-group">
+					<label for="selected_cust_type">Customer Type:</label> 
+				    <div class="form-inline">	
+					     <input type="text" class="form-control"  id="cust_type_name" placeholder="Customer Type Name"/>
+					     <input type="text" class="form-control"  id="cust_type_desc" placeholder="Customer Type Description"/>					     
+					     <input type="checkbox" class="form-control"  id="isVisible"/>
+					     <label for="isVisible">isVisible</label> 
+					     <input type="checkbox" class="form-control"  id="isEnabled" onclick=""/>
+					     <label for="isEnabled">isEnabled</label> 
+					     </br>
+					     <input type="text" class="form-control"  id="params" placeholder="Parameter Name"/>
+					     <input type="text" class="form-control"  id="paramsDesc" placeholder="Parameters Description"/>
+					     <a  id="addCustType"> Add a new Customer Type</a>					     
+					     </br>
+					     </br>					     						
+						<button class="btn btn-sm btn-success" id="updateCustType" type="button">Update</button>																
+					</div>													
+				</div>																											
+			</div>                                                       				
+		</form>
+		
+		<form class="col-md-12 form-horizontal well" role="form">
+						   
+			<div class="col-md-8 form-group" id="SubQuery_Div">
+			     
+				<label for="subquery">Sub Query:</label>
+				<div class="form-inline" id="SubQueryForm" >
+					<select class="form-control" id="sqlCommand" onchange="append_sqlCondition_according_to_sqlCommand(event);" autofocus>
+						<option value="SELECT">SELECT</option>
+						<option value="JOIN">JOIN</option>
+						<option value="LEFT JOIN">LEFT JOIN</option>
+						<option value="RIGHT JOIN">RIGHT JOIN</option>
+						<option value="WHERE">WHERE</option>
+						<option value="AND">AND</option>
+						<option value="OR">OR</option>
+						<option value="ORDER BY">ORDER BY</option>
+					</select> <input type="text" class="form-control" id="selectListItem"
+						placeholder="Select List Item" /> <input type="text"
+						class="form-control" id="tableListItem"
+						placeholder="Table List Item" /> <input type="text"
+						class="form-control" id="alias" placeholder="Alias" /> <input
+						type="text" class="form-control" id="joinCondition"
+						placeholder="Join Condition" /> <input type="text"
+						class="form-control" id="filterCondition"
+						placeholder="Filter Condition" /> <input type="text"
+						class="form-control" id="filterParam" placeholder="Filter Param" />
+					<button class="btn btn-sm btn-primary" id="addQuery" onclick="add_one_query_click(event);" type="button">+</button>
+					<button class="btn btn-sm btn-primary" id="removeQuery" onclick="remove_current_query_click(event);" type="button">-</button>
+				</div>
+			</div>
+			
+			<div class="col-md-8 form-group">	
+				<button class="btn btn-sm btn-success" id="saveQuery" type="button">Save</button>					
+			</div>
+					
+			<div class="col-md-8 form-group" id="EmailPrefix_Div">
+			     				
+				<table id="emailprefix_table" class="table table-bordered table-hover ">
+					<caption>Email Prefix</caption>
+					<thead>
+				          <tr class="alert alert-warning" >	
+				            <th width='5%'>Id</th>			            
+				            <th width='85%'>Prefix Name</th>
+				            <th width='7%'>IsEnabled</th>
+				            <th width='3%'></th>				            			            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   <a  id="append_emailprefix"  onclick ="add_one_email_prefix_click(this);"> Add New Email Prefix</a>
+			   </br>
+			   </div>				
+			</div>
+	
+			<div class="col-md-8 form-group" id="UserIdPrefix_Div">
+			     				
+				<table id="useridprefix_table" class="table table-bordered table-hover ">
+					<caption>UserId Prefix</caption>
+					<thead>
+				          <tr class="alert alert-warning" >				            
+				            <th width='5%'>Id</th>
+				            <th width='85%'>Prefix Name</th>
+				            <th width='7%'>IsEnabled</th>
+				            <th width='3%'></th>			            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   <a  id="append_useridprefix"  onclick ="add_one_userid_prefix_click(this);"> Add New UserID Prefix</a>
+			   </br>
+			   </div>
+			</div>          					
+			
+			<div class="col-md-8 form-group" id="PasswordRule_Div">
+			     				
+				<table id="passwordrule_table" class="table table-bordered table-hover ">
+					<caption>Password Rule</caption>
+					<thead>
+				          <tr class="alert alert-warning" >	
+				            <th width='5%'>Id</th>
+				            <th width='35%'>UserId Prefix</th>
+				            <th width='42%'>Password</th>
+				            <th width='10%'>Is Enable</th>	
+				            <th width='3%'></th>				            			            
+				          </tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			   <a  id="append_passwordrule"  onclick ="add_one_password_rule_click(this);"> Add New Password Rule</a>
+			   </br>
+			   </div>				
+			</div>
+			
+			<div class="col-md-8 form-group" id="SqlPannel_Div">
+			
+				<div class="panel panel-primary " id="sql_panel">
+							<div class="panel-heading">Query:</div>
+							<div class='panel-body' id='sql_body'></div>		
+				</div>	   		
+			</div>			
+			
+<!-- 			<div class="col-md-8" id="ShowQueryBtn_Div">
+				
+				<button type="button" class="btn btn-sm btn-success" id="generatequery">Show
+				Query</button>			
+			</div>	  -->  	
+			
+ 			<div class="col-md-12" id="productmap_collection" style="height:435px; overflow-y: auto; overflow-x: auto;">
+				<table id="product_table" class="table table-bordered table-hover ">
+					<caption>Product Map</caption>
+					<thead>
+				          <tr class="alert alert-warning" >				            
+				            <th width='10%'>Product Type</th>
+				            <th width='45%'>Product Key</th>
+				            <th width='35%'>IPS Product Key</th>
+				            <th width='7%'>Is Enable</th>	
+				            <th width='3%'></th>				            
+				          </tr>
+				          				          
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+				<div class="col-md-12 form-group">
+			      <a id="append_productmap" onclick="add_one_productmap_click(this);"> Add New Product Map</a>			   
+			   </div>	   		   	   			
+	   			
+			</div>
+			
+			<div class="col-md-8 form-group" id="SelfDefinedSql_panel">
+		
+			<div class="panel panel-primary " id="self_defined_sql_panel">
+					<div class="panel-heading">Self Defined Query:</div>
+					<div class='panel-body' id='self_defined_body'>
+					<input	type="text" class="form-control" id="selfDefinedSQLQuery" placeholder="Self-Defined SQL Query" data-operation-type="add"/>
+					</br>
+					<button type="button" class="btn btn-sm btn-success" id="add_self_defined_query">Save</button>
+					</div>
+	
+			</div>	   		
+		</div>	   		
+		
+		</form>
+
+	</div>
+
+</div>
+
+<!-- Modal -->
+
+<div class="modal" role="dialog" tabindex="-1" id="CustomerTypeDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Customer Type:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">					
+			<button type="button" class="btn btn-sm btn-primary" id="saveCustType"  data-dismiss="modal">Save</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelCustType" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="ProductMapDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Product Map:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">		
+			<button type="button" class="btn btn-sm btn-primary" id="addProductMap" data-dismiss="modal">Add</button>
+			<button type="button" class="btn btn-sm btn-primary" id="updateProductMap"  data-dismiss="modal">Save</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelProductMap" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="EmailPrefixDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Email Prefix:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">										
+			</div>
+			<div class="modal-footer">			
+			<button type="button" class="btn btn-sm btn-primary" id="addEmailPrefix" data-dismiss="modal">Add</button>
+			<button type="button" class="btn btn-sm btn-primary" id="updateEmailPrefix" data-dismiss="modal">Save</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelEmailPrefix" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="UserIdPrefixDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">UserId Prefix:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">
+			<button type="button" class="btn btn-sm btn-primary" id="addUserIdPrefix" data-dismiss="modal">Add</button>
+			<button type="button" class="btn btn-sm btn-primary" id="updateUserIdPrefix" data-dismiss="modal">Save</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelUserIdPrefix" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="PasswordRuleDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Password Rule:</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">				
+			</div>
+			<div class="modal-footer">		
+			<button type="button" class="btn btn-sm btn-primary" id="addPasswordRule" data-dismiss="modal">Add</button>
+			<button type="button" class="btn btn-sm btn-primary" id="updatePasswordRule"  data-dismiss="modal">Save</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelPasswordRule" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="EnableDisableDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Please Confirm...</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">		
+			    <p style="text-align:left;color:red" >Are you sure to enable or disable current item?</p>		
+			</div>
+			<div class="modal-footer">
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisableCustType" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisableProductType" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisableEmailPrefix" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisableUserIdPrefix" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisablePasswordRule" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-primary" id="enableDisableSubQuery" data-dismiss="modal">Confirm</button>
+			<button type="button" class="btn btn-sm btn-danger" id="cancelDialog" data-dismiss="modal">Cancel</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="ErrorDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Error Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<strong>Fail!</strong>
+  					<h5 id="error_message"></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="SuccessDialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+				<h4 class="modal-title">Success Dialog</h4>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-success">
+  					<strong>Success!</strong>
+  					<h5 id="success_message"></h5>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<!--Please wait model-->
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+                 </h4>
+            </div>
+            <div class="modal-body">
+                <div class="progress">
+                    <div class="progress-bar progress-bar-info progress-bar-striped active" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} 
+
+{% block script_block %}
+
+<script language='JavaScript'>
+	     
+	var csrf_token = "{{ csrf_token }}";		
+	var loading_task = 0;
+	
+	function ui_lock(taskcount)
+	{
+	  	$('#please_wait_modal').modal('show');
+		loading_task = taskcount;
+	}
+
+	//Unlock UI
+	function ui_unlock()
+	{
+		loading_task = loading_task -1;
+		if(loading_task <= 0)
+		{
+			$('#please_wait_modal').modal('hide');
+		}
+	}
+	
+	$(document).ready(function(){
+		
+		initial_hide();					
+		ui_lock(1);
+		
+		$.ajax({
+			type:  "Get",
+			url:  "../get-projects",
+			headers:  {"X-CSRFToken": csrf_token },		
+			
+			success:  function(data) {    
+				my_projects = data;			
+				present_projects(my_projects);
+				ui_unlock();
+				},
+			
+			error:  function(data) {
+				show_error_dialog('Load projects error');
+				ui_unlock();
+				}
+			});			
+		
+		initialize(); 	
+		
+		//Entity and Project 
+		$('#database').on('change', { csrf_token: "{{ csrf_token }}" }, function(event){ clear_page_content();});
+		$('#entity').on('change', { csrf_token: "{{ csrf_token }}" }, function(event){handle_display_with_different_entities(event);});		
+		$('#project').on('change', { csrf_token: "{{ csrf_token }}" }, function(event){ clear_page_content();});
+		
+		//Customer Type
+		$('#listcusttype input').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){present_selected_custtypes(event);load_queries_by_custtype(event);});		
+		$('#addCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_one_custtype_click(event);});		
+		$('#saveCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_custtype(event);});
+		$('#updateCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_custtype(event);});	
+		$('#CustType_Div #isEnabled').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ check_uncheck_custtype_isenable_checkbox(event);});				
+		$('#enableDisableCustType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_custtype(event);});		
+
+		//Sql Query			
+		$('#saveQuery').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ save_sub_queries(event);});				
+		$('#add_self_defined_query').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ save_sub_queries(event);});		
+		//$('#generatequery').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ load_queries_by_custtype(event);});
+		$('#enableDisableSubQuery').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_sub_query(event);});
+		
+        //Product Map
+		$('#addProductMap').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_productmap(event);});
+		$('#updateProductMap').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_productmap(event);});		
+		$('#enableDisableProductType').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_producttype(event);});	
+		$('#cancelProductMap').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ load_productmap(event);});
+
+		//Email Prefix
+		$('#addEmailPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_email_prefix(event);});
+		$('#updateEmailPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_email_prefix(event);});		
+		$('#enableDisableEmailPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_emailprefix(event);});
+        $('#cancelEmailPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ load_email_prefix(event);});
+		
+        //UserId Prefix
+		$('#addUserIdPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_userid_prefix(event);});
+		$('#updateUserIdPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_userid_prefix(event);});
+		$('#enableDisableUserIdPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_useridprefix(event);});
+		$('#cancelEmailPrefix').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ load_userid_prefix(event);});
+		
+		//Password Rule
+		$('#addPasswordRule').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ add_password_rule(event);});
+		$('#updatePasswordRule').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ update_password_rule(event);});
+		$('#enableDisablePasswordRule').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ enable_disable_current_password_rule(event);});
+		$('#cancelPasswordRule').on('click', { csrf_token: "{{ csrf_token }}" },  function(event){ load_password_rules(event);});
+						
+	});
+	
+	//window.onbeforeunload = confirmExit;
+	//exit confirm
+	//function confirmExit()
+	//{
+		//if(my_status=='edit' | my_status=='new'){
+	  		//return 'You have attempted to leave this page.  If you have made any changes to the fields without clicking the Save button, your changes will be lost.  Are you sure you want to exit this page?';
+		//}
+	//}
+	
+	Split(['#leftpanel', '#middlepanel'],{
+	    sizes: [22, 78],
+	    
+	});
+	
+	</script>
+{% endblock %}
+
+{% block endbody %}
+{% endblock %}
+

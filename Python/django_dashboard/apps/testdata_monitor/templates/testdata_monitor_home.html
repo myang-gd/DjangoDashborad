@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% load staticfiles %}
+{% block head_block %}
+<script type="text/javascript" src="{% static 'js/testdata_monitor.js' %}"></script>
+
+<link rel="stylesheet" href="{% static 'plugins/vakata-jstree/themes/default/style.min.css' %}"/>
+
+<script type="text/javascript" src="{% static 'plugins/Split.js-master/split.min.js' %}"></script>
+{% endblock %}
+
+
+{% block title %}
+	TestData Monitor
+{% endblock title %}
+
+{% block style %}
+
+<style>
+body {
+	padding-top: 70px; /* To fix nav bar overlapping content */
+	/*background-color: #E9F0D8;*/
+}
+
+.bg-green {
+	background-color: #99CB33; /* Green */
+	color: #ffffff;
+}
+
+.navbar {
+	background-color: #99CB33; /* Green */
+}
+
+.navbar li a,.navbar {
+	color: #fff;
+}
+
+.navbar-nav li a:hover,.navbar-nav li.active a {
+	color: #fff;
+	background-color: #EFA843; /* orange */
+}
+
+h1 {
+	color: #24922B;
+	text-align:center;
+}
+
+.gutter {
+	background-color: #eee;
+	background-repeat: no-repeat;
+	background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/vertical.png' %}");
+	cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+	background-image:
+		url("{% static 'plugins/Split.js-master/grips/horizontal.png' %}");
+	cursor: row-resize;
+}
+
+.split.split-horizontal,.gutter.gutter-horizontal {
+	height: 100%;
+	float: left;
+}
+
+.table {
+	table-layout: fixed;
+}
+
+.td {
+	height: 20px;
+	overflow: hidden;	
+}
+
+#error_message {
+	color: red;
+}
+
+#success_message {
+	color: green;
+}
+
+#page_detail tbody tr+tr td {
+	word-wrap: break-word;
+	word-break: break-all;
+}
+</style>
+
+{% endblock %}
+
+{% block container_block %}
+
+	<div class="container">
+	
+	<h1>TestData Monitor</h1>
+	
+	<br/>
+		
+	{% include "testdata_monitor_monitors.html" with monitors=active_monitors title="Active Monitors" %}
+
+	</div>
+	
+{% endblock %}

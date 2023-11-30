@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load common_tags %}
+{% load staticfiles %}
+<!-- {% load static %} -->
+
+{% block header %}
+{% endblock header %}
+
+{% block head_block %}
+	<script type="text/javascript" src="{% static 'js/card_finder.js' %}"></script>
+{% endblock %} 	
+
+{% block title %}
+	Card Finder
+{% endblock title %}
+	
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+        <div class="col-lg-6" style='text-align:center'>
+			<h1>QA Environment Card Finder</h1>
+			<br />
+			<br />
+			<br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm" action="{% url 'card_finder' %}" method="post">
+				{% csrf_token %}
+				<div class='form-group'>
+					
+					<select class="form-control" id='environment' name='environment' autofocus>
+	  					<option>Environment</option>
+		    			{% for id, name in form.fields.environment.choices %}
+		    				<option value="{{ id }}" {% if form.environment.value == id %} selected {% endif %}>{{ name }}</option>
+		    			{% endfor %}
+	  				</select>
+	  				
+	  				<select class="form-control" id='product' name="product" data-toggle="tooltip" title="Use Product List if you want to get a count of multiple products at once." data-placement="left">
+	  					<option>Product</option>
+		    			{% for id, name in form.fields.product.choices %}
+		    				<option value="{{ id }}" {% if form.product.value == id %} selected {% endif %}>{{ name }}</option>
+		    			{% endfor %}
+	  				</select>
+
+					<select class="form-control" id='productmap' name='productmap' data-toggle="tooltip" title="Use Product List if you want to get a count of multiple products at once." data-placement="left">	  					
+	  				</select>
+	  				
+	  				<div class="form-control">
+	  					 						
+		  				<label class="checkbox-inline">
+		  					{% if isProductMap == True %}
+					      		<input type="checkbox" id="isProductMap" onclick="switch_view(this)" value="isProductMap" checked>ProductMap
+					      	{% else %}
+					      		<input type="checkbox" id="isProductMap" onclick="switch_view(this)" value="isProductMap">ProductMap
+					      	{% endif %}
+					    </label>
+					    &nbsp&nbsp									    	    
+						<label class="radio-inline">
+					      <input type="radio" id="isTsys" onclick="swith_tsys_ips_view(this)" name="tsys">Tsys
+					    </label>
+					    <label class="radio-inline">
+					      <input type="radio" id="isIPS" onclick="swith_tsys_ips_view(this)" name="ips">IPS
+					    </label>					
+					</div>
+
+	  				<input class="form-control" data-toggle="tooltip" title="Dollar amount loaded to the card.  Can be a value or a range of values.  E.g., a value of '20' will return a card with a minimum value of $20.  A value of '20-50' will return a card with value between $20 and $50.  This field is only used by Get Card, not Get Count." data-placement="left" style="padding-left:17px" type="text" {% if value %} value = "{{ value }}" {% endif %} name="value" placeholder="Value (e.g., 20 or 20-50)">	
+	  				<!-- <input class="form-control" data-toggle="tooltip" title = "Comma delimited list of products used only by Get Count.  Overrides product selection." data-placement="left" style="padding-left:17px" type="text" {% if product_list %} value = "{{ product_list }}" {% endif %} name="product_list" placeholder="Product List (e.g., 6502,6507)"> -->
+	  				
+	  			</div>
+	  			
+	  			
+	  			<button class="btn btn-md btn-warning btn-block" id="count_sub" type="submit" name="count_sub" data-toggle="tooltip" title='Hit me to get a count of available cards!' data-placement="right">Get Count</button>
+				<button class="btn btn-md btn-success btn-block" id="get_sub" type="submit" name="get_sub" data-toggle="tooltip" title='Hit me to grab a card!' data-placement="right">Get Card</button>
+				
+				<input type="hidden" id="load_products" name="load_products" value="">
+				<input type="hidden" id="load_productmap" name='load_productmap' value="">
+			</form>
+			<br/> 
+			
+			{% if output.responseCode == 1 %}
+				<span class="h3 alert-danger" >{{ output.errorReason }}</span> 
+			{% endif %}
+			
+			{% if output %}
+				{% if type == 'get' %}
+					<h3>Card Info</h3>
+					<table class='table table-striped table-hover table-bordered table-condensed'>
+						<tr>
+							<th>PIN</th>
+							<td>{{ output.result.pin }}</td>
+						</tr>
+						<tr>
+							<th>SerialNbr</th>
+							<td>{{ output.result.serialNbr }}</td>
+						</tr>
+						<tr>
+							<th>CVV</th>
+							<td>{{ output.result.cvv }}</td>
+						</tr>
+						<tr>
+							<th>Value</th>
+							<td>${{ output.result.value | stringformat:".2f"}}</td>
+						</tr>
+						<tr>
+							<th>Expiration</th>
+							<td>{{ output.result.expiration | slice:"0:2" }}/{{ output.result.expiration | slice:"6:8" }} (mm/yy)</td>
+						</tr>
+						<tr>
+							<th>Remaining</th>
+							<td>{{ output.result.count }}</td>
+						</tr>
+					</table>
+				{% else %}
+					<h3>Card Count</h3>
+					<table class='table table-striped table-hover table-bordered table-condensed text-center'>
+						<tr>
+							<div class="text-center">
+								<td><b>Product</td>
+								<td><b>Count</td>
+							</div>
+						</tr>
+						{% for card in output.result %}
+							<tr>
+								<td>{{ card.product }}</td>
+								<td>{{ card.count }}</td>
+							</tr>
+						{% endfor %}
+					</table>
+				{% endif %}
+			{% endif %}
+			</div>	
+			<div class="col-lg-3"></div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>    
+    var csrf_token = "{{ csrf_token }}";
+    
+    $(document).ready(function() {
+    	initialize();
+	});		
+
+	 $("#count_sub").on('click',function(){
+	 	if($("#isProductMap").prop("checked")==true){
+	 		$("#load_productmap").val("true");
+	 		$("#load_products").val("false");
+	 	}else{
+	 		$("#load_products").val("true");
+	 		$("#load_productmap").val("false");
+	 	}			
+	 	});
+
+ 		 $("#get_sub").on('click',function(){
+	 	if($("#isProductMap").prop("checked")==true){
+	 		$("#load_productmap").val("true");
+	 		$("#load_products").val("false");
+	 	}else{
+	 		$("#load_products").val("true");
+	 		$("#load_productmap").val("false");
+	 	}			
+	 	});
+
+	 $("#isProductMap").on('change', {	 	
+		csrf_token : "{{ csrf_token }}"
+		}, function(event) {		
+			load_productmap(event);   	
+		if($("#isProductMap").prop("checked")==true){
+			switch_view(event);	
+			append_productmap_to_datalist();		
+		}					 																		 		
+    	});
+
+	 $("#productmap").on('change', {	 	
+		csrf_token : "{{ csrf_token }}"
+		}, function(event) {		
+		  get_selected_productmap(event);
+    	});
+
+	 $("#isIPS").click(function() {
+  		append_ipsproductmap_to_datalist();
+	});
+
+	$("#isTsys").click(function() {
+  		append_productmap_to_datalist();
+	});			
+
+
+	 $("#environment").on('change',{	 	
+		csrf_token : "{{ csrf_token }}"
+		},function(event) {
+	 	load_productmap(event);   
+
+	 	if($("#isProductMap").prop("checked")==true){
+	 		$("#load_productmap").val("true");
+	 		$("#load_products").val("false");
+	 	}else{
+	 		$("#load_products").val("true");
+	 		$("#load_productmap").val("false");
+	 	}
+	 	
+		$("#mainForm").submit();
+	});	
+
+	$("#count_sub").click(function () {
+		$("#mainForm").submit();
+	    loading();
+	});
+	 
+	$("#get_sub").click(function () {
+		$("#mainForm").submit();
+		loading();
+	});
+	
+	function loading() {
+		$('#please_wait_modal').modal('show');
+		return true;
+	}
+</script>
+
+{% endblock container_block %}
+

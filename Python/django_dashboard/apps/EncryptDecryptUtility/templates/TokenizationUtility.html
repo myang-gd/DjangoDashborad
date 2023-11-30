@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+<!-- {% load common_tags %} -->
+{% load static %} 
+
+{% block header %} 
+{% endblock header %} 
+
+{% block title %} 
+	Encryption Decryption Utility 
+{% endblock title %}
+
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+		<div class="col-lg-6" style='text-align: center'>
+			<h1>Tokenization Utility</h1>
+			<br /> <br /> <br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm">
+
+				<div class="h3 alert alert-warning" style="display: none;">
+					<strong>Warning!&nbsp;</strong> <span></span>
+				</div>
+				<div class="form-group">
+
+					<div class="form-inline">
+						<div class="radio">
+							<label><input type="radio" name="optradio"
+								id="Tokenize_rdo" checked="true" onclick="tokenizeView()">
+								Tokenize</label>
+						</div>
+						&nbsp&nbsp&nbsp
+						<div class="radio">
+							<label><input type="radio" name="optradio"
+								id="DeTokenize_rdo" onclick="detokenizeView()">
+								DeTokenize</label>
+						</div>
+					</div>
+
+					</br> <input class="form-control" data-placement="left"
+						style="padding-left: 17px" type="text" id="personalID_txt"
+						placeholder="PersonalID"> <input class="form-control"
+						data-placement="left" style="padding-left: 17px" type="text"
+						id="callChainID_txt" placeholder="CallChainID">
+
+				</div>
+				<button class="btn btn-md btn-success btn-block" type="button"
+					id="get_result" data-toggle="tooltip" title='Hit me to get result!'
+					data-placement="right">Get Result</button>
+			</form>
+			<br />
+
+			<div id="result"></div>
+			<div class="col-lg-3"></div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog"
+	aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var delay = 3000;
+var loading_task = 0;
+
+function tokenizeView(){
+	$('#personalID_txt').attr('placeholder', 'PersonalID');
+	$('#personalID_txt').val("")
+	$('#callChainID_txt').val("")
+	$('#callChainID_txt').show()
+}
+	
+function detokenizeView(){
+	$('#personalID_txt').attr('placeholder', 'PersonalIDToken');
+	$('#personalID_txt').val("")
+	$('#callChainID_txt').hide()
+}
+	 
+function handle_with_warning_text(string) {
+	$('.h3.alert.alert-warning span').text(string);
+	$('.h3.alert.alert-warning').attr('style', {
+		display : 'inline;'
+	}).alert();
+	$('.h3.alert.alert-warning').delay(delay).hide(0);
+}
+
+$('#get_result').on('click', {csrf_token : "{{ csrf_token }}"}, get_tokenization_result)
+
+function get_tokenization_result(event)
+{
+	var text = $('#personalID_txt').val();
+	var regex = /^\s+$/;
+	$('#result').empty();
+	
+	if((text == null) || (text == "") || (regex.test(text) == true))
+	{
+		if ($('#Tokenize_rdo').prop('checked') == true)
+		{
+			handle_with_warning_text("Personal ID can not be null!");
+		}
+		else
+		{
+			handle_with_warning_text("Personal IDToken can not be null!");
+		}
+	}
+	else
+	{
+		ui_lock(1);
+		//Tokenize
+		if ($('#Tokenize_rdo').prop('checked') == true)
+		{
+			var json = {"PersonalId" : text, "CallChainID" : $('#callChainID_txt').val()};
+			
+			$.ajax({
+				type: "POST",
+				url : "tokenize",
+				headers : {"X-CSRFToken" : event.data.csrf_token},
+				data : json,
+				timeout : 10000,
+				success : function(data)
+				{
+					ui_unlock();
+					var result_table = "<table class='table table-striped table-hover table-bordered table-condensed'>"
+						+ "<tr><th>Personal ID Token</th><td>"
+						+ data["Output"]["PersonalIdToken"]
+						+ "</td></tr></table>";
+					$('#result').append(result_table);},
+				error : function(data)
+				{
+					ui_unlock();
+					handle_with_warning_text("Tokenize failed! Please check your input and re-try!");
+				}
+			});
+		}
+		//De-Tokenize
+		else
+		{
+			var json = {"PersonalIdToken" : text};
+			
+			$.ajax({
+				type: "POST",
+				url : "detokenize",
+				headers : {"X-CSRFToken" : event.data.csrf_token},
+				data : json,
+				timeout : 10000,
+				success : function(data) 
+				{
+					ui_unlock();
+					var result_table = "<table class='table table-striped table-hover table-bordered table-condensed'>"
+						+ "<tr><th>Personal ID</th><td>"
+						+ data["Output"]["PersonalId"]
+						+ "</td></tr></table>";
+						$('#result').append(result_table);
+				},
+				error : function(data)
+				{
+					ui_unlock();
+					handle_with_warning_text("DeTokenize failed! Please check your input and re-try!");
+				}
+			});
+		}
+	}		
+}
+	
+//Lock UI 
+function ui_lock(taskcount)
+{
+	$('#please_wait_modal').modal('show');
+	loading_task = taskcount;
+}
+
+//Unlock UI
+function ui_unlock()
+{
+	loading_task = loading_task - 1;
+	if(loading_task <= 0)
+	{
+		$('#please_wait_modal').modal('hide');
+	}
+}
+</script>
+
+{% endblock container_block %}
+

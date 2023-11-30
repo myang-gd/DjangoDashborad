@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+<!-- {% load common_tags %} -->
+{% load static %}
+
+{% block header %}
+{% endblock header %}
+
+{% block title %}
+	ACI Utility
+{% endblock title %}
+
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+        <div class="col-lg-6" style='text-align:center'>
+			<h1>QA Environment ACI Utility</h1>
+			<br />
+			<br />
+			<br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm">
+
+				<div class="h3 alert alert-warning" style="display:none;">
+<!-- 					<a class="close" data-dismiss="alert" href="#" aria-hidden="true">
+						&times;
+					</a> -->
+					<strong>Warning!&nbsp;</strong>
+					<span></span>
+				</div>
+				<div class="form-group">
+
+					<select class="form-control" id="environment" autofocus>
+	  					<option>Environment</option>
+	  					<option>QA3</option>
+	  					<option>QA4</option>
+	  					<option>QA5</option>
+	  				</select>
+
+					<select class="form-control" id="is_Personalized">
+	  					<option>IsPersonalized</option>
+	  					<option>0</option>
+	  					<option>1</option>
+	  				</select>
+
+	  				<input class="form-control" data-toggle="tooltip" title="Input PTS SerialNbr here!" data-placement="left" style="padding-left:17px" type="text" {% if value %} value = "{{ value }}" {% endif %} id="serial_nbr" placeholder="SerialNbr">
+	  			</div>
+				<button class="btn btn-md btn-success btn-block" type="button" id="get_cvv" data-toggle="tooltip" title='Hit me to get CVV!' data-placement="right">Get Card Info</button>
+			</form>
+			<br/>
+
+			<div id="cvv_result">
+			</div>
+			<div class="col-lg-3"></div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var delay = 3000;
+var loading_task = 0;
+
+$('#get_cvv').on('click', { url: "{% url 'get_aci_card_info' %}", csrf_token: "{{ csrf_token }}" }, get_cvv)
+
+function get_cvv(event)
+{
+	var env = $('#environment').val();
+	var serial_nbr = $('#serial_nbr').val();
+	var isPersonalized = $('#is_Personalized').val();
+	var regex = /^\s+$/;
+
+	$('#cvv_result').empty();
+
+	if(env == "Environment")
+	{
+		$('.h3.alert.alert-warning span').text("Please select Environment!");
+		$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+		$('.h3.alert.alert-warning').delay(delay).hide(0);
+	}
+	else
+	{
+		if((serial_nbr == null) || (serial_nbr == "") || (regex.test(serial_nbr) == true))
+		{
+			$('.h3.alert.alert-warning span').text("Please input SerialNbr!");
+			$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+			$('.h3.alert.alert-warning').delay(delay).hide(0);
+		}
+		else if(isPersonalized == "IsPersonalized")
+		{
+		    $('.h3.alert.alert-warning span').text("Please select IsPersonalized!");
+		    $('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+		    $('.h3.alert.alert-warning').delay(delay).hide(0);
+		}
+
+	}
+
+	if((env != "Environment") && (isPersonalized != "IsPersonalized") && ((serial_nbr != null) && (serial_nbr != "") && (regex.test(serial_nbr) == false)))
+	{
+		var json = {"env": env, "serial_nbr": serial_nbr, "isPersonalized": isPersonalized};
+		ui_lock(1);
+
+		$.ajax({
+			type: "POST",
+			url: event.data.url,
+			headers: {"X-CSRFToken": event.data.csrf_token},
+			data: json,
+			timeout: 10000,
+			success:  function(data) {
+				ui_unlock();
+				if (data["Output"]["ResponseCode"] == "Failed")
+				{
+					$('.h3.alert.alert-warning span').text(data["Output"]["Error"]);
+					$('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+					$('.h3.alert.alert-warning').delay(delay).hide(0);
+					//window.location.reload();
+				}
+				else
+				{
+					var cards = data["Output"]["PTSCardInfo"];
+					var result_table = "<h3>IPS Card Info</h3>"
+					+ "<table id='result_table' class='table table-striped table-hover table-bordered table-condensed'>"
+					+ "<tr id='header_row'><th>SerialNbr</th><th>IsPersonalized</th><th>ExpirationDate</th><th>CardNumber</th><th>CVV</th><th>DOB</th><th>SSN</th></tr>"
+					+ "</table>";
+					$('#cvv_result').append(result_table);
+					if(Array.isArray(cards)){
+						for (var i = 0; i < cards.length; ++i)
+						{
+							row_html = "<tr><td>"+ cards[i]['SerialNbr'] + "</td>"
+							+ "<td>"+cards[i]['IsPersonalized']+"</td>"
+							+ "<td>"+cards[i]['ExpirationDate']+"</td>"
+							+ "<td>"+cards[i]['CardNo']+"</td>"
+							+ "<td>"+cards[i]['CardCVV2']+"</td>"
+							+ "<td>"+cards[i]['DOBEncryptionKey']+"</td>"
+							+ "<td>"+cards[i]['SSNToken']+"</td></tr>";
+							$('#result_table tr:last').after(row_html)
+
+						}
+					}
+					else{
+						row_html = "<tr><td>"+ cards[i]['SerialNbr'] + "</td>"
+						+ "<td>"+cards[i]['IsPersonalized']+"</td>"
+						+ "<td>"+cards[i]['ExpirationDate']+"</td>"
+						+ "<td>"+cards[i]['CardNo']+"</td>"
+						+ "<td>"+cards[i]['CardCVV2']+"</td>"
+						+ "<td>"+cards[i]['DOBEncryptionKey']+"</td>"
+						+ "<td>"+cards[i]['SSNToken']+"</td></tr>";
+						$('#result_table tr:last').after(row_html)
+					}
+
+				}
+			},
+			error: function(data) {
+				 ui_unlock();
+				 $('.h3.alert.alert-warning span').text("Failed to get card info");
+				 $('.h3.alert.alert-warning').attr('style',{display: 'inline;'}).alert();
+				 $('.h3.alert.alert-warning').delay(delay).hide(0);
+			}
+
+		});
+	}
+}
+
+//Lock UI
+function ui_lock(taskcount)
+{
+  	$('#please_wait_modal').modal('show');
+	loading_task = taskcount;
+}
+
+//Unlock UI
+function ui_unlock()
+{
+	loading_task = loading_task -1;
+	if(loading_task <= 0)
+	{
+		$('#please_wait_modal').modal('hide');
+	}
+}
+
+</script>
+
+{% endblock container_block %}

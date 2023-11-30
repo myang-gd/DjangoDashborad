@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+{% block title %}Encrypt{% endblock %}
+{% block style %}
+	<style>
+		body {padding-top: 50px; }
+   </style>
+{% endblock %}
+{% block container_block %}
+  <div  style="overflow:auto;margin-left:50px;margin-right:50px;" >	
+	<form action="{% url 'encrypt' %}" method="post">
+		{% csrf_token %}
+		<div class="input-group">
+				<span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+	            <input style="width:20% " class="form-control " placeholder="string to be encrypted"  name="encode_decode_string" type="text" />
+	            <button style="width:10% " class="btn btn-outline-secondary" type="submit">Encrypt</button>
+	    </div>
+	 </form>
+   {% if result %}
+	    <hr>
+		<div class="well well-large" style="height:500px;overflow-y: scroll;">
+			 {{result}}						
+		</div>
+	{% endif %}
+  </div>
+{% endblock %}
+
+
+
+

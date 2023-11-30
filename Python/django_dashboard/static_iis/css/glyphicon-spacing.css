@@ -1,0 +1,8 @@
+.btn .glyphicon {
+	margin-right: 6px;
+	vertical-align: middle;
+}
+
+.btn.btn-icon .glyphicon {
+	margin-right: 0;
+}

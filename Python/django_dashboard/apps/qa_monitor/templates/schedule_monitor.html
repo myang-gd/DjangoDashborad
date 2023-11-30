@@ -1,0 +1,475 @@
+{% extends 'monitor.html' %}
+
+{% load staticfiles %}
+
+{% load custom_tags %}
+
+{% block head_block %}
+
+	<script type="text/javascript" src="/static/admin/js/vendor/jquery/jquery.js"></script>
+	<script type="text/javascript" src="/static/admin/js/jquery.init.js"></script>
+	<script type="text/javascript" src="/static/admin/js/admin/RelatedObjectLookups.js"></script>
+	<script type="text/javascript" src="/admin/jsi18n/"></script>
+
+{% endblock %}    
+
+{% block title %}View monitors{% endblock %}
+
+{% block script_block %} 
+	
+	{{block.super}}
+	
+	<script type="text/javascript">
+
+		$(document).ready(function() {
+
+			 if("{{monitor_id}}" != "" ){
+				 document.getElementById("create_monitor_button").disabled = true;
+				 if("{{is_owner}}" != "true"){
+					 if ('{{perms.qa_monitor.change_monitorschedule}}' != 'True'){
+						 document.getElementById("update_monitor_button").disabled = true;
+					 }
+					 if ('{{perms.qa_monitor.delete_monitorschedule}}' != 'True'){
+						 document.getElementById("remove_monitor_button").disabled = true;
+					 }
+				 }
+			 } else {
+				 document.getElementById("update_monitor_button").disabled = true;
+				 document.getElementById("remove_monitor_button").disabled = true;
+			 }
+			 
+			$('#processor_id').multiselect({
+  	            	enableFiltering: true,
+  	             	enableCaseInsensitiveFiltering: true,
+  	             	onChange: processDropDownChange
+  	        
+  			});
+			$('#environment_id').multiselect({
+	            	enableFiltering: true,
+	             	enableCaseInsensitiveFiltering: true,
+	             	onChange: function(option, element, checked){processDropDownChange(option, element, checked);processEnvDropDownChange(option, element, checked)}, 
+	        
+			});
+			if("{{operation_id}}" != "") {
+				document.getElementById("operation_id").value= "{{operation_id}}"
+			}
+			$('#operation_id').multiselect({
+            	enableFiltering: true,
+             	enableCaseInsensitiveFiltering: true,    
+			});
+			document.getElementById('operation_id').onchange = function() {
+				setModelLink(this.children[this.selectedIndex].getAttribute('href'));
+			}
+			setModelLink($("#operation_id option:selected" ).attr('href'))
+		})
+        function setModelLink(href){
+			$('#model_link_id').attr('href',href );
+		}
+		function processDropDownChange(option, element, checked)
+        {
+            var selectedEnvironmentID = $("#environment_id option:selected").val();	      			 
+		    var SelectedProcessorID = $('#processor_id option:selected').val();
+		    if(selectedEnvironmentID == null || selectedEnvironmentID == '' || SelectedProcessorID == null || SelectedProcessorID == '' 
+		    		|| selectedEnvironmentID == 'NoneSelected') {
+		    	return false
+		    }
+		    $.ajax({
+		        url : "/monitor",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"environment_id" : selectedEnvironmentID, "processor_id" : SelectedProcessorID},
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		var operation_list_array = [];
+			        	var jsonData = responseDataObject.responseJSON
+			        	var operation_dict = {};
+			        	if(jsonData.hasOwnProperty('operation_dict')){
+			        		
+			        		operation_dict = jsonData['operation_dict']
+			        		for (var key in operation_dict)
+				        	{
+			        			var selected = false
+			        			if('"' + key + '"' == "{{operation_id}}") {
+			        				selected = true
+			        			}
+			        			operation_list_array.push( {
+			        				'label' : operation_dict[key].operation,
+			        				'value' : key,
+			        				'selected' : selected,
+			        				'href'  : operation_dict[key].url,
+			        			})
+				        	}
+			        	}
+			        	$("#operation_id").multiselect('dataprovider', operation_list_array)
+			        	$("#operation_id option").each(function() {
+			        		if(operation_dict.hasOwnProperty($(this).val()))
+			        			$(this).attr('href',operation_dict[$(this).val()].url)
+						});
+			        	setModelLink($("#operation_id option:selected" ).attr('href'))
+		        	}
+			});
+		}
+		function processEnvDropDownChange(option, element, checked)
+        {
+            var selectedEnvironmentID = $("#environment_id option:selected").val();	      			 
+		    if(selectedEnvironmentID == null || selectedEnvironmentID == '' || selectedEnvironmentID == 'NoneSelected') {
+		    	return false
+		    }
+		    $.ajax({
+		        url : "/monitor",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"environment_id" : selectedEnvironmentID},
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+		        		var server_list_array = [];
+			        	server_list_array.push({
+		        			'label' : '--Select Server--',
+		        			'value' : 'NoneSelected',
+		        	    })
+			        	var jsonData = responseDataObject.responseJSON
+			        	var operation_dict = {};
+			        	if(jsonData.hasOwnProperty('server_dict')){
+			        		
+			        		server_dict = jsonData['server_dict']
+			        		for (var key in server_dict)
+				        	{
+			        			server_list_array.push( {
+			        				'label' : server_dict[key],
+			        				'value' : key,
+			        			})
+				        	}
+			        	}
+			        	$("#server_id").multiselect('dataprovider', server_list_array)
+		        	}
+			});
+		}
+		function create_edit_monitor(source) {
+			var environment_id = document.getElementById('environment_id').value
+			var server_id = document.getElementById('server_id').value
+			
+			var processor_select = document.getElementById('processor_id')
+			var operation_select = document.getElementById('operation_id')
+			if(environment_id == 'NoneSelected') {
+				alert("Required environment is missing")
+				return false
+			}
+			if(processor_select.options[processor_select.selectedIndex] == null ) {
+				alert("Required processor is missing")
+				return false
+			}
+			if(operation_select.options[operation_select.selectedIndex] == null ) {
+				alert("Required operation is missing")
+				return false
+			}
+			/* var processor_id = processor_select.options[processor_select.selectedIndex].value;  */
+			var processor_id = processor_select.value; 
+			var operation_id = operation_select.value; 
+			var monitor_name = document.getElementById('monitor_name_id').value
+			var monitor_desc = document.getElementById('monitor_desc_id').value
+			var monitor_email_title = document.getElementById('monitor_email_title_id').value
+			var monitor_recipient_list = document.getElementById('monitor_recipient_list_id').value 
+
+			var interval_id = document.getElementById('id_interval').value
+			/* var interval_id = interval_select.options[interval_select.selectedIndex].value; */
+			var cron_id = document.getElementById('id_crontab').value
+			/* var cron_id = cron_select.options[cron_select.selectedIndex].value; */
+			var enabled = document.getElementById('monitor_enable_id').checked.toString().toUpperCase()
+			var monitor_id = document.getElementById('monitor_id_id').value
+			var skip_success = document.getElementById('monitor_skip_success_id').checked.toString().toUpperCase()
+			var store_result = document.getElementById('monitor_store_result_id').checked.toString().toUpperCase()
+			
+			data = { 	 
+		        		'csrfmiddlewaretoken' : '{{ csrf_token }}' ,
+		        		'environment_id'	: environment_id,
+		        		'server_id'      : server_id,
+		        		'processor_id'   : processor_id,
+		        		'operation_id'	 : operation_id,
+		        		'monitor_name' : monitor_name ,
+		        		'monitor_desc' : monitor_desc ,
+		        		'interval_id'   : interval_id,
+		        		'cron_id'       : cron_id,
+		        		'enabled'    	: enabled,
+		        		'monitor_id' : monitor_id,
+		        		'monitor_recipient_list' : monitor_recipient_list,
+		        		'skip_success' : skip_success,
+		        		'store_result' : store_result,
+		        		'monitor_email_title' : monitor_email_title
+	        		}
+		    if(source.id == "update_monitor_button") {
+		    	data['update'] = 'true' 
+		    } else if (source.id == "create_monitor_button") {
+		    	data['create'] = 'true' 
+		    }
+		    
+			$.ajax({
+		        url : "/monitor/schedule_monitor/",
+		        type : "POST",
+		        dataType: "json",
+		        data : data ,
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+			        	var jsonData = responseDataObject.responseJSON
+						success = jsonData['success']
+			        	if(success=='N') {
+			        		alert("Failed to create or update monitor due to : \n " + jsonData['error'])
+			        	} else {
+			        		alert("Created or saved schedule successfully!!")			        		
+			        	}
+
+		        	},
+		        	error: function(jqXHR, textStatus, errorThrown) {
+		        		if(errorThrown == 'Internal Server Error'){
+		        			alert("Failed to create or save monitor, possible reasons: \n 1. Monitor name already exists ")
+		        		} else {
+		        			alert("Failed to create or save monitor due to :" + errorThrown)
+		        		}
+		        	}
+			});
+			
+		}
+		
+		function remove_monitor() {		
+			var monitor_id = document.getElementById('monitor_id_id').value
+			$.ajax({
+		        url : "/monitor/schedule_monitor/",
+		        type : "POST",
+		        dataType: "json",
+		        data : {  
+		        		'csrfmiddlewaretoken' : '{{ csrf_token }}' ,
+		        		'monitor_id'   : monitor_id ,
+		        		'remove' 		: "true"
+		        		},
+		        success: 
+			        	function(response, result, responseDataObject) 
+			        	{
+				        	var jsonData = responseDataObject.responseJSON
+							success = jsonData['success']
+				        	if(success=='N') {
+				        		alert(jsonData['error'])
+				        	} else {
+			        			alert("Removed schedule successfully!!")
+				        	}
+
+			        	},
+			    error: function(jqXHR, textStatus, errorThrown) {
+			        		alert("Failed to remove schedule due to :" + errorThrown)
+			        	}
+			}); 
+			
+		}
+		
+	</script>
+	
+		
+{% endblock %}
+
+
+{% block tab_content %}
+
+	<div>
+ 		<form id="filter-form" class="form-horizontal" role="form" action="{% url 'schedule_monitor' %}" method="post">
+			
+			<!-- Enter Monitor Name -->
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="monitor_name_id">Monitor Name: </label>
+				<div class="col-sm-3">
+					<input type="text" class="form-control" id="monitor_name_id" name="monitor_name" value = "{{monitor_name | safe}}" required="required">
+					<input type="hidden" class="form-control" id="monitor_id_id" name="monitor_id" value = "{{monitor_id}}">
+				</div>
+			</div>
+			
+			<!-- Select Environment -->			
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="environment_id">Environment: </label>
+				<div class="col-sm-2">
+					<select class="form-control" id="environment_id" name="environment" required="required">
+						{% if environment_dict %}
+							<option value="NoneSelected">--Select Environment--</option>
+							{% for key, value in environment_dict.items %}
+						    	<option value="{{ key }}"  {% if environment_id == key %} selected{% endif%} >{{ value }}</option>
+						    {% endfor %}
+						{% endif %}
+		  			</select>
+		  		</div>	  		
+			</div>
+			
+			<!-- Select Server -->			
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="server_id">Server: </label>
+				<div class="col-sm-2">
+					<select class="form-control" id="server_id" name="server" required="required">
+						<option value="NoneSelected">--Select Server--</option>
+						{% for key, value in server_dict.items %}
+						    	<option value="{{ key }}"  {% if server_id == key %} selected{% endif%} >{{ value }}</option>
+						{% endfor %}
+		  			</select>
+		  		</div>	  		
+			</div>
+			
+			<!-- Select Processor Type -->
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="processor_id">Processor: </label>
+				<div class="col-sm-2">
+					<select class="form-control" id="processor_id" name="processor" required="required">
+						{% if processor_dict %}
+							{% for key, value in processor_dict.items %}
+						    	<option value="{{ key }}"  {% if processor_id == key %} selected{% endif%} >{{ value }}</option>
+						    {% endfor %}
+						{% endif %}
+		  			</select>
+		  		</div>	  		
+			</div>
+			<!-- Select Operation -->
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="operation_id">Operation: </label>
+				<div class="col-sm-5" >
+					<select class="form-control" id="operation_id" name="operation" required="required" onchange="location = this.href;" style="display: inline;">
+						{% if operation_dict %}
+							{% for key, value in operation_dict.items %}						    
+						    	<option value="{{ key }}"  {% if operation_id == key %} selected{% endif%} href="{{ value.url }}" >{{ value.operation }}</option>
+						    {% endfor %}
+						{% endif %}
+						
+		  			</select>
+		  			<a id="model_link_id" href="" style="display: inline;">Model Link</a>
+		  		</div>	  		
+			</div>	
+			<!-- Enter schedule description -->			
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="monitor_desc_id">Monitor Description: </label>
+				<div class="col-sm-10">
+						<textarea id="monitor_desc_id" name=monitor_desc" style="width:700px;height:150px;">{{monitor_desc | safe}}</textarea>
+				</div>
+			</div>
+			<!-- Enter schedule email title -->			
+			<div class="form-group">
+				<label class="control-label col-sm-2" title="System variables NAME,ENV,RESULT are availabe, e.g. QA Monitor - ${NAME} ${ENV} - ${RESULT}" for="monitor_email_title_id">Email Title: </label>
+				<div class="col-sm-3">
+					<input type="text" class="form-control" id="monitor_email_title_id" name="monitor_email_title" value = "{{monitor_email_title | safe}}" >
+				</div>
+			</div>	
+			<!--  Enter Interval -->
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="id_interval">Interval: </label>
+				<div class="col-sm-2" >
+					<fieldset class="module aligned extrapretty wide">
+					    <div class="form-row field-interval">
+					        <div>
+						        <div class="related-widget-wrapper ">
+							    	<select id="id_interval" name="interval" class="form-control" required="required">
+										<option value="">---------</option>
+										{% if interval_list %}
+											{% for item in interval_list %}
+												<option value="{{item.id}}" {% if interval_id ==  item.id %} selected {% endif %}>
+													{{item.display_name}}
+												</option>
+											{% endfor %}
+										{% endif %}
+									</select>
+
+									<a class="related-widget-wrapper-link change-related" id="change_id_interval"
+							            data-href-template="/admin/djcelery/intervalschedule/__fk__/change/?_to_field=id&amp;_popup=1"
+							            title="Change selected interval">
+							            <img src="/static/admin/img/icon-changelink.svg" alt="Change"/>
+						        	</a>       
+							        <a class="related-widget-wrapper-link add-related" id="add_id_interval"
+							            href="/admin/djcelery/intervalschedule/add/?_to_field=id&amp;_popup=1"
+							            title="Add another interval">
+							            <img src="/static/admin/img/icon-addlink.svg" alt="Add"/>
+							        </a>
+							        <a href="http://docs.celeryproject.org/en/v2.3.3/userguide/periodic-tasks.html" target="_blank">
+   										<img src="/static/admin/img/icon-unknown.svg" alt="help"/>
+   									</a>
+					    		</div>
+					    	</div>
+					    </div>
+					    
+					</fieldset>
+				</div>
+			</div>
+			
+			
+			<!-- Enter Cron Job -->
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="id_crontab">Crontab: </label>
+				<div class="col-sm-2" >
+					<fieldset class="module aligned extrapretty wide">
+					   <div class="form-row field-crontab">
+					     <div>
+					        <div class="related-widget-wrapper">
+					    		<select id="id_crontab" name="crontab" class="form-control" required="required">
+									<option value="" selected="selected">---------</option>
+									{% if cron_list %}
+										{% for item in cron_list %}
+											<option value="{{item.id}}" {% if cron_id == item.id %} selected {% endif %} >{{item.display_name}}</option>
+										{% endfor %}
+									{% endif %}
+								</select>       
+						        <a class="related-widget-wrapper-link change-related" id="change_id_crontab"
+						            data-href-template="/admin/djcelery/crontabschedule/__fk__/change/?_to_field=id&amp;_popup=1"
+						            title="Change selected crontab">
+						            <img src="/static/admin/img/icon-changelink.svg" alt="Change"/>
+						        </a>       
+						        <a class="related-widget-wrapper-link add-related" id="add_id_crontab"
+						            href="/admin/djcelery/crontabschedule/add/?_to_field=id&amp;_popup=1"
+						            title="Add another crontab">
+						            <img src="/static/admin/img/icon-addlink.svg" alt="Add"/>
+						        </a>
+					        	<a href="http://docs.celeryproject.org/en/v2.3.3/userguide/periodic-tasks.html" target="_blank">
+  									<img src="/static/admin/img/icon-unknown.svg" alt="help"/>
+  								</a>   
+							</div>
+						 </div>
+					   </div>
+					    
+					</fieldset>
+				</div>
+			</div>
+			
+			<div class="form-group">
+				<label class="control-label col-sm-2 " for="monitor_enable_id"> Enabled: </label>
+				<div class="col-sm-10 checkbox-align">
+					<input name="monitor_enable" type="checkbox" id ="monitor_enable_id" {% if enabled == True or enabled == "on" %} checked {% endif%}>   
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="control-label col-sm-2 " for="monitor_skip_success_id"> Skip Success: </label>
+				<div class="col-sm-10 checkbox-align">
+					<input name="monitor_skip_success" type="checkbox" id ="monitor_skip_success_id" {% if skip_success == True or skip_success == "on" %} checked {% endif%}>   
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="control-label col-sm-2 " for="monitor_store_result_id"> Store Result: </label>
+				<div class="col-sm-10 checkbox-align">
+					<input name="monitor_store_result" type="checkbox" id ="monitor_store_result_id" {% if store_result == True or store_result == "on" %} checked {% endif%}>   
+				</div>
+			</div>
+			<div class="form-group">
+				<label class="control-label col-sm-2 " for="monitor_owner_id"> Owner: </label>
+				<div class="col-sm-2">
+					<input name="monitor_owner" type="text" value="{{monitor_owner | safe}}" id ="monitor_owner_id" class="form-control" readonly>
+				</div>
+			</div>
+			<!-- Enter Recipient List -->			
+			<div class="form-group">
+				<label class="control-label col-sm-2" for="monitor_recipient_list_id">Recipient List: </label>
+				<div class="col-sm-10">
+						<textarea id="monitor_recipient_list_id" name="monitor_recipient_list" style="width:700px;height:150px;">{{monitor_recipient_list | safe}}</textarea>
+				</div>
+			</div>
+			<div class="form-group"> 
+			    <div class="col-sm-offset-2 col-sm-10">
+			      <button id="create_monitor_button" type="button" class="btn btn-default btn-success" onclick="create_edit_monitor(this)">Create monitor</button>
+			      <button id="update_monitor_button" type="button" class="btn btn-default btn-success" onclick="create_edit_monitor(this)">Update</button>
+			      <button id="remove_monitor_button" type="button" class="btn btn-default btn-success" onclick="remove_monitor()">Remove</button>
+			    </div>
+		  	</div>	
+			
+		</form>
+  	</div>	 
+
+{% endblock %}

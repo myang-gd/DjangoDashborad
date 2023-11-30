@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+<!-- {% load common_tags %} -->
+{% load static %} 
+
+{% block header %}
+{% endblock header %}
+
+{% block title %}
+	Encryption Decryption Utility
+{% endblock title %}
+	
+{% block container_block %}
+
+<div class="container">
+	<div class="row">
+		<div class="col-lg-3"></div>
+        <div class="col-lg-6" style='text-align:center'>
+			<h1>Encryption Decryption Utility</h1>
+			<br />
+			<br />
+			<br />
+			<h3>What's It Gonna Be?</h3>
+			<br />
+			<form id="mainForm">
+				
+				<div class="h3 alert alert-warning" style="display:none;">
+					<strong>Warning!&nbsp;</strong>
+					<span></span>
+				</div>
+				<div class="form-group">
+					
+					<div class="form-inline">
+						<div class="radio">
+						  <label><input type="radio" name="optradio" id="EncryptBtn" > Encrypt</label>
+						</div>
+						&nbsp&nbsp&nbsp
+						<div class="radio">
+						  <label><input type="radio" name="optradio" id="DecryptBtn"> Decrypt</label>
+						</div>
+					</div>
+					
+					</br>
+					<select class="form-control" id="Project" autofocus>
+	  					<option>Select Project</option>
+	  				</select>
+	  					  			
+	  				<input class="form-control" data-toggle="tooltip" title="Input Encrypt or Decrypt text here!" data-placement="left" style="padding-left:17px" type="text" {% if value %} value = "{{ value }}" {% endif %} id="encode_decode_string" placeholder="Input Encrypt or Decrypt Text here.">
+	  				
+	  			</div>
+				<button class="btn btn-md btn-success btn-block" type="button" id="get_result" data-toggle="tooltip" title='Hit me to get result!' data-placement="right">Get Result</button>
+			</form>
+			<br/> 
+			
+			<div id="encrypt_or_decrypt_result">
+			</div>
+			<div class="col-lg-3"></div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" id="please_wait_modal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">
+					<span class="glyphicon glyphicon-time"></span>&nbsp Please Wait...
+				</h4>
+			</div>
+			<div class="modal-body">
+				<div class="progress">
+					<div
+						class="progress-bar progress-bar-info progress-bar-striped active"
+						style="width: 100%"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var delay = 3000;
+var loading_task = 0;
+var encode_type = 0;
+
+function present_projects(data) {
+	for (var i = 0; i < data.length; i++) {
+		$('#Project').append('<option>' + data[i]["projectName"] + '</option>');
+	}
+}
+	
+function check_if_no_option_selected(event) {
+	if($('input#EncryptBtn').prop('checked') == false && $('input#DecryptBtn').prop('checked') == false) {
+		var warning_text = "You should choose Encrypt or Decrypt option at first.";
+		handle_with_warning_text(warning_text);
+	} 
+}
+	 
+function handle_with_warning_text(string) {
+	$('.h3.alert.alert-warning span').text(string);
+	$('.h3.alert.alert-warning').attr('style', {
+		display : 'inline;'
+	}).alert();
+	$('.h3.alert.alert-warning').delay(delay).hide(0);
+}
+
+function loadprojects(event) {
+	$.ajax({
+		type : "Get",
+		url : "../encryptdecryptutility/get_project_list",
+		headers : {
+			"X-CSRFToken" : event.data.csrf_token
+		},
+
+		success : function(data) {
+				present_projects(data);
+		},
+
+		error : function(data) {
+			alert("error");
+		}
+	});
+}
+
+$(document).ready(function() {
+	$('input#EncryptBtn').on('click', {
+		csrf_token : "{{ csrf_token }}"
+	}, function(event) {
+		loadprojects(event);
+	});
+
+	$('input#DecryptBtn').on('click', {
+		csrf_token : "{{ csrf_token }}"
+	}, function(event) {
+		loadprojects(event);
+	});
+
+	$('#Project').on('click', {}, function(event) {
+		check_if_no_option_selected(event);
+	});
+});
+
+function get_encode_type() {
+	if ($('input#EncryptBtn').prop('checked') == true) {
+		encode_type = 1;
+	}
+	
+	if ($('input#DecryptBtn').prop('checked') == true) {
+		encode_type = 2;
+	} 
+	return encode_type;
+}
+
+$('#get_result').on('click', { url : "{% url 'encrypt_decrypt' %}", csrf_token : "{{ csrf_token }}"}, get_encrypt_or_decrypt_result)
+
+function get_encrypt_or_decrypt_result(event) {
+	var encode_decode_type = get_encode_type();
+	var project_name = $('#Project').val();
+	var encode_decode_string = $('#encode_decode_string').val();
+	var regex = /^\s+$/;
+		
+	$('#encrypt_or_decrypt_result').empty();
+	
+	if ($('input#EncryptBtn').prop('checked') == false
+			&& $('input#DecryptBtn').prop('checked') == false) {
+		handle_with_warning_text("You should choose Encrypt or Decrypt option at first!");
+	}
+	else
+	{
+		if (project_name == "Select Project")
+		{
+			handle_with_warning_text("Please select Project!");
+		}
+		else
+		{
+			if ((encode_decode_string == null) || (encode_decode_string == "") || (regex.test(encode_decode_string) == true))
+			{
+				handle_with_warning_text("The Encode or Decode Text can not be null!");
+			}
+		}
+	}
+	
+	if ((encode_decode_type > 0) && (project_name != "Select Project") && ((encode_decode_string != null) && (encode_decode_string != "") && (regex.test(encode_decode_string) == false)))
+	{
+		var json = {"project_name" : project_name, "encode_decode_type" : encode_decode_type, "encode_decode_string" : encode_decode_string};
+		ui_lock(1);
+		
+		$.ajax({
+			type : "POST",
+			url : event.data.url,
+			headers : {
+				"X-CSRFToken" : event.data.csrf_token
+			},
+			data : json,
+			timeout : 10000,
+			success : function(data) {
+				ui_unlock();
+					
+				if (data["Output"]["ResponseCode"] == "Failed") {
+					handle_with_warning_text(data["Output"]["errorReason"]);
+				}
+				else
+				{
+					var result_table_head = "<h3>Encryption Decryption Result</h3>";
+					
+					if ($('input#EncryptBtn').prop('checked') == true)
+					{
+						result_table_head = "<h3>Encryption Result</h3>";
+					} 
+					else
+					{
+						if ($('input#DecryptBtn').prop('checked') == true) 
+						{
+							result_table_head = "<h3>Decryption Result</h3>";
+						}
+					}
+					
+					var result_table = result_table_head + "<table class='table table-striped table-hover table-bordered table-condensed'><tr><th>Result</th><td>"
+						+ data["Output"]["CipherText"] + "</td></tr></table>";
+					$('#encrypt_or_decrypt_result').append(result_table);
+				}
+			}
+		});
+	}
+}
+
+//Lock UI 
+function ui_lock(taskcount)
+{
+  	$('#please_wait_modal').modal('show');
+	loading_task = taskcount;
+}
+
+//Unlock UI
+function ui_unlock()
+{
+	loading_task = loading_task -1;
+	if(loading_task <= 0)
+	{
+		$('#please_wait_modal').modal('hide');
+	}
+}
+</script>
+
+{% endblock container_block %}
+

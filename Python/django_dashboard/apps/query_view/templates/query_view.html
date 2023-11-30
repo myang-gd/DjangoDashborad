@@ -1,0 +1,509 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block head_block %}
+    <!-- DataTables JS -->
+    <script src="{% static 'js/jquery.blockUI.js' %}"></script>
+	<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+	<script src="https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js"></script>
+	<script src="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css"></script>
+
+	<style>
+		div.bordered {
+		  border: double;
+		}
+		div.dataTables_wrapper {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        tr.selected {
+    		background-color: green !important;
+		}
+        #db_info {
+			font-style: italic;
+			font-weight: bold;
+			color: blue;
+		}
+
+        .dataTables_filter { float: right; text-align: right; }
+	</style>
+
+{% endblock %}
+
+{% block title %}Welcome Query View Site{% endblock %}
+
+{% block script_block %}
+<script type="text/javascript">
+	var query_result_table = null
+	var exec_result_table = null
+   	var selected_query_id = ''
+   	var selected_row = null
+   	var selected_params = {}
+   	var selected_target_server = null
+
+    $(document).ready(function(){
+		$('#img_no_fav').hide()
+		$('#img_fav').hide()
+		$('#img_unlocked').hide()
+		$('#img_locked').hide()
+
+		$('#img_no_fav').on('click', function(){ $("#is_favorite").click() })
+		$('#img_fav').on('click', function(){ $("#is_favorite").click() })
+	});
+
+	function favorite_queries(){
+   	    selected_query_id = ''
+   		selected_row = null
+		load_queries('/api/favorite_queries/?format=json')
+	};
+
+	function my_queries(){
+   	    selected_query_id = ''
+   		selected_row = null
+		load_queries('/api/my_queries/?format=json')
+	};
+
+	function search_queries(){
+		selected_query_id = '';
+   		selected_row = null;
+   		selected_params = {};
+		$('#selected_query').val('');
+		$('#query_script').val('');
+		$('#parameter').val('{}');
+		load_queries('/api/search_queries/?condition=' + $('#search_condition').val().trim() + '&format=json')
+	};
+
+	function load_queries(ajax_url){
+		if (query_result_table != null){
+			query_result_table.destroy();
+		}
+
+		query_result_table = $('#rel_content').DataTable({
+			pagingType: 'full',
+			"bLengthChange": false,
+			language: {
+			    "search": "_INPUT_",
+                "searchPlaceholder": "Search",
+				paginate: {
+					first:    '«',
+					previous: '‹',
+					next:     '›',
+					last:     '»'
+				}
+			},
+			searching: true,
+			order: [[ 1, "asc" ]],
+			"scrollY": 300,
+            "scrollX": true,
+			ajax: {
+				url : ajax_url,
+				type : "GET",
+				dataType: "json",
+				dataSrc: ""
+
+			},
+			deferRender: true,
+			columns: [
+			   {data: "id",	title: "Id", type: "hidden", visible: false },
+			   {data: "name", title: "Name"},
+			   {data: "description", title: "description", visible: true},
+			   {data: "sql", title: "sql", visible: false},
+			   {data: "is_favorite", title: "is_favorite", visible: false},
+			],
+		});
+		result_selected();
+	}
+
+	function result_selected(){
+		$(query_result_table.table().container()).on( 'click', 'tr', function () {
+			var row = query_result_table.row( this );
+			selected_row = row
+            $('#query_script').val(row.data()['sql']);
+            $('#selected_query').val(row.data()['name']);
+            $('#parameter').val(detectParams(row.data()['sql']));
+            selected_query_id = row.data()['id']
+
+            $("#target_server").empty();
+			$.each(row.data()['databases'], function (idx, obj) {
+				if (selected_target_server == obj.id) {
+					$("#target_server").append('<option value="' + obj.id + '" selected>' + obj.name + '</option>');
+				}else{
+					$("#target_server").append('<option value="' + obj.id + '" >' + obj.name + '</option>');
+				}
+			});
+			if (row.data()['is_favorite'] == 0){
+				$('#is_favorite').prop('checked', false);
+				$('#img_no_fav').show()
+				$('#img_fav').hide()
+
+			}else{
+				$('#is_favorite').prop('checked', true);
+				$('#img_no_fav').hide()
+				$('#img_fav').show()
+			}
+
+			if (row.data()['locked'] == 'False'){
+				$('#img_unlocked').show()
+				$('#img_locked').hide()
+			}else{
+				$('#img_unlocked').hide()
+				$('#img_locked').show()
+			}
+			var patt = new RegExp(/.*(delete |update ).*/gi);
+			var is_ud = patt.test(row.data()['sql'])
+
+			$("#execute_query").prop('disabled', is_ud)
+
+            $('#edit_query').click(function() {
+                window.open("{% url 'edit' %}?id=" + selected_query_id);
+            });
+
+		});
+
+		$('#rel_content tbody').on( 'click', 'tr', function () {
+			if ( $(this).hasClass('selected') ) {
+<!--				$(this).removeClass('selected');-->
+			}
+			else {
+				query_result_table.$('tr.selected').removeClass('selected');
+				$(this).addClass('selected');
+			}
+    	} );
+
+	}
+
+	$("#is_favorite").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			if(selected_query_id == '') {
+				return;
+			}
+			$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+			$.ajax({
+			type: "POST",
+			url:  "/api/sync_favorite/",
+			headers:  {"X-CSRFToken": event.data.csrf_token},
+			data:  {"query_script_id": selected_query_id, 'is_favorite': $('#is_favorite').is(':checked')},
+				success: function(data) {
+				    $.unblockUI()
+				    if(selected_row != null){
+				    	selected_row.data()['is_favorite'] = $('#is_favorite').is(':checked')
+				    	if($('#is_favorite').is(':checked')){
+				    		$('#img_no_fav').hide()
+							$('#img_fav').show()
+						}else{
+							$('#img_no_fav').show()
+							$('#img_fav').hide()
+						}
+				    }
+				},
+				error: function(data) {
+				    $.unblockUI()
+				    alert('Sync favorite failed')
+					if($('#is_favorite').is(':checked')){
+						$('#is_favorite').prop('checked', true);
+					}else{
+						$('#is_favorite').prop('checked', false);
+					}
+				}
+			});
+		});
+
+	$("#execute_query").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			var my_view_model = {'query_id': '', 'db_id': '', 'params': {}};
+			var my_db_id = $('#target_server').val();
+			var my_params_str = $('#parameter').val();
+			selected_target_server = my_db_id
+
+			if(selected_query_id == '') {
+				show_error_dialog('Please select one query at least!');
+				return;
+			} else {
+				my_view_model['query_id'] = selected_query_id;
+			}
+
+			if(my_db_id == null) {
+				show_error_dialog('Please select one target server!');
+				return;
+			} else {
+				my_view_model['db_id'] = my_db_id;
+			}
+
+			if(!jQuery.isEmptyObject(selected_params)) {
+				if(isJson(my_params_str)) {
+					var my_params_data = {}
+					var diff_arr = []
+					var org_param_arr = []
+					var runtime_param_arr = []
+					var my_params = eval('(' + my_params_str + ')');
+					for(var k in selected_params){
+						org_param_arr.push(k);
+					}
+					for(var p in my_params) {
+						for(var q in selected_params){
+							if((q).toString().toLowerCase()===(p).toString().toLowerCase()){
+								my_params_data[q] = my_params[p];
+								runtime_param_arr.push(q);
+							}
+						}
+					}
+					diff_arr = getArrDiff(org_param_arr, runtime_param_arr);
+					if(diff_arr.length == 0){
+						my_view_model['params'] = my_params_data
+					} else {
+						show_error_dialog('Missing parameters: [' + diff_arr.toString() +']');
+						return;
+					}
+				} else {
+					show_error_dialog('Parameters is not JSON format!');
+					return;
+				}
+			}
+
+			var data = JSON.stringify(my_view_model);
+
+			$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+
+			$('#result').empty()
+			$('#result').append('<table id="exec_result" class="dataTable table-bordered table-responsive-md table-striped" style="width:100%;overflow:auto;"></table>')
+
+			$.ajax({
+			type: "Post",
+			url:  "/api/execute_query/",
+			headers:  {"X-CSRFToken": event.data.csrf_token},
+			data:  {"my_json_data": data},
+				success: function(data) {
+				    $.unblockUI()
+				    if(data['success'] == true) {
+				        if(data['error'] == null || data['error'] == '') {
+				            $('#db_info').text(data['db_info'])
+				            present_exec_result_table(data['data']);
+				        } else {
+				            $('#db_info').text(data['db_info'])
+				            show_warning_dialog('Execute Succeeded: ' + data['error']);
+				        }
+				    } else {
+				        show_error_dialog('Execute Failed: ' + data['error']);
+				        $('#db_info').text(data['db_info'])
+				    }
+				},
+				error: function(data) {
+				    $.unblockUI()
+					show_error_dialog('Execute Failed: ' + data['error']);
+				}
+			});
+		});
+
+	function present_exec_result_table(data){
+		var tableHeaders='';
+		var columns = []
+		var values = []
+		$.each(data[0], function(key, val){
+			tableHeaders += "<th>" + key + "</th>";
+			columns.push({'title': key})
+		});
+
+		$.each(data, function(i, val_mp){
+			var item = []
+			$.each(val_mp, function(key, val){
+				item.push(val)
+			});
+			values.push(item)
+		});
+
+		exec_result_table = $('#exec_result').dataTable({
+			data: values,
+			"language": {
+                "search": "_INPUT_",
+                "searchPlaceholder": "Search"
+            },
+			columns: columns,
+			"scrollY": '30vh',
+            "scrollX": true,
+            "bLengthChange": false,
+		});
+	}
+
+	function show_error_dialog(message) {
+		$('#error_message').html('<p>'+ message +'</p>');
+		$('#error_dialog').modal();
+	}
+
+	function show_warning_dialog(message) {
+		$('#warning_message').html('<p>'+ message +'</p>');
+		$('#warning_dialog').modal();
+	}
+
+	function isJson(str) {
+    	try {
+        	JSON.parse(str);
+    	} catch (e) {
+        	return false;
+    	}
+    	return true;
+	}
+
+	function detectParams(str) {
+	    var params_reg = /%{[A-Za-z0-9_-]+}/gm;
+	    var result = {};
+	    if(str != null && str != '') {
+	        var params = [];
+	        var res = str.match(params_reg);
+	        while(res = params_reg.exec(str))
+            {
+                params.push(res[0]);
+            }
+	        if (params != null) {
+	            var i = 0
+	            var key_patt = /[A-Za-z0-9_-]+/;
+	            for (i = 0; i < params.length; i++) {
+                    var key = key_patt.exec(params[i]);
+                    if(key != null) {
+                        result[key] = "";
+                    }
+                }
+                selected_params = result
+	        }
+	    }
+	    return JSON.stringify(result);
+	}
+
+	function getArrDiff(arr1, arr2) {
+        return arr1.concat(arr2).filter(function(v, i, arr) {
+            return arr.indexOf(v) === arr.lastIndexOf(v);
+        });
+    }
+
+
+</script>
+{% endblock %}
+
+
+{% block container_block %}
+<div class="container-fluid">
+ <div class="row bordered"> <h6 style="padding-right:20px">Show Queries</h6>
+	 <div class="btn-group">
+    	 <button type="button" class="btn btn-outline-primary" style="width:100px" onclick="my_queries()">My</button>
+		 <button type="button" class="btn btn btn-outline-success" style="width:100px" onclick="favorite_queries()">Favorites</button>
+         <span style="padding-right:50px"></span>
+         <button type="button" class="btn btn btn-outline-primary" style="width:100px;">
+             <a class="nav-link" href="{% url 'register' %}" target="_blank">Register</a></button>
+
+	 </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+ <div class="row bordered">
+    	<div class="col-sm-4 bordered" >
+			<div class="row ">
+			  <div class="col-sm-10"><input class="form-control" type="text" placeholder="Search Query" id="search_condition"></div>
+			  <div class="col-sm-2"><button type="submit" class="btn btn-primary btn-sm" id="search_btn" onclick="search_queries()" >Search</button></div>
+			</div>
+
+			<br>
+			<div class="row">
+				<div id="query_result" class="dataTables_wrapper no-footer" style="width:100%;">
+				  <table id="rel_content" class="dataTable table-bordered table-responsive-md table-striped "
+							   style="width:100%;overflow:auto;">
+
+				  </table>
+				</div>
+			</div>
+		</div>
+
+    	<div class="col-sm-8 bordered" >
+			<div class="row ">
+				<div class="container-fluid">
+					<div class="row ">
+						<div class="col-sm-2"><label for="query_script">Query Executor:</label></div>
+						<div class="col-sm-9 form-group"><input class="form-control" type="text" id="selected_query" disabled></div>
+						<div class="col-sm-1">
+							<img id="img_no_fav" src="{% static 'images/heart_gray.png' %}" width="20" height="20" title="Add query to your favorites" align="right"/>
+							<img id="img_fav" src="{% static 'images/heart_red.png' %}" width="20" height="20" title="Remove query from your favorites" align="right"/>
+						</div>
+					</div>
+
+					<textarea class="form-control" rows="10" id="query_script" readonly></textarea>
+				</div>
+			</div>
+
+			<div class="row ">
+				<div class="col-sm-4">
+					<div class="form-group">
+						<label for="target_server"><h6>Target Server:</h6></label>
+					  <select class="form-control" id="target_server">
+					  </select>
+					</div>
+					<button id="execute_query" type="submit" class="btn btn-primary btn-sm">Execute</button>
+					<button id="edit_query" type="submit" class="btn btn-primary btn-sm" target="_blank">Edit</button>
+
+				</div>
+				<div class="col-sm-8">
+					<label for="parameter">Input Parameter With Json Format:</label>
+					<textarea class="form-control" rows="3" id="parameter" placeholder="{'name':'value1','name2':'value2'}">{}</textarea>
+					<input type="checkbox" id="is_favorite" name="is_favorite" hidden>
+					<img id="img_unlocked" src="{% static 'images/unlocked.png' %}" width="20" height="20" title="Query is not used by tests" align="right"/>
+                    <img id="img_locked" src="{% static 'images/locked.png' %}" width="20" height="20" title="Query was used by tests align" align="right"/>
+				</div>
+			</div>
+
+		</div>
+ </div>
+ <div class="row bordered" style="height:550px" >
+  	 <div  class="container-fluid" style="height:30px"><label><h6>Query Results:</h6></label> <label id="db_info" style="padding-left:10px"></label></div>
+	 <div id="result" class="container-fluid dataTables_wrapper no-footer">
+  		 <table id="exec_result" class="dataTable table-bordered table-responsive-md table-striped"
+						   style="width:100%;overflow:auto;">
+		  </table>
+	 </div>
+ </div>
+</div>
+
+<!-- Modal -->
+<div class="modal" role="dialog" tabindex="-1" id="error_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h6 class="modal-title">Error Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<strong>Error!</strong>
+  					<h6 id="error_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal" role="dialog" tabindex="-1" id="warning_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+                <h6 class="modal-title">Warning Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-warning">
+  					<strong>Warning!</strong>
+  					<h6 id="warning_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock %}

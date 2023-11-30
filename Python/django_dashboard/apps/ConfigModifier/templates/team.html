@@ -1,0 +1,274 @@
+{% extends 'entry.html' %}
+{% load i18n widget_tweaks %}
+{% load custom_tags_configmodifier %}
+{% load staticfiles %}
+{% block title %}team{% endblock %}
+
+{% block panel %}
+
+<script type="text/javascript">
+	
+		$(document).ready(function() {
+			 $('#id_environment').prepend('<option value="NoneSelected" selected=true>--Select Environment--</option>'); 
+			 $('#id_server_type').prepend('<option value="NoneSelected" selected=true>--Select Server Type--</option>'); 
+			 $('#id_server').prepend('<option value="NoneSelected" selected=true>--Select Server--</option>'); 
+			 $('#id_file').prepend('<option value="NoneSelected" selected=true>--Select File--</option>'); 
+			 $('#id_config').prepend('<option value="NoneSelected" selected=true>--Select Config--</option>'); 
+			 
+			  $('#id_environment').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: processEnvironmentDropDown,	
+			    })
+
+			  $('#id_server_type').multiselect({
+					 enableFiltering: true,
+		             enableCaseInsensitiveFiltering: true,  
+					 onChange: processServerTypeDropDown,
+			  })
+				 
+			 $('#id_server').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: processServerDropDown,
+			 })
+			 
+			  $('#id_file').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+					onChange: processFileDropDown,
+			 })
+			 $('#id_config').multiselect({
+					enableFiltering: true,
+ 	             	enableCaseInsensitiveFiltering: true,
+			 })
+			 $("#id_server").multiselect('disable');
+			 $("#id_file").multiselect('disable');
+			 $("#id_config").multiselect('disable'); 
+			 
+			 $('#dialog-add-feature').change(function(){ checkInputs() });
+			 
+			 $('#tb_result').on('click', '.clickable-row', function(event) {
+				  $(this).addClass('active').siblings().removeClass('active');
+			 });
+			 $('#tb_result').on('hover', '.clickable-row', function(event) {
+				  $(this).addClass('active').siblings().removeClass('active');
+			 });
+			 $( "tr" ).hover(
+				  function() {
+					  $(this).addClass('active').siblings().removeClass('active');
+					  $(this).find('.hover-action').css('display', 'inline')
+				  }, function() {
+					  $(this).find('.hover-action').css('display', 'none')
+					  $(this).removeClass('active');
+				  }
+			  );
+			 
+			 $(".delete").on('click', function(event) {
+				    event.preventDefault();
+				    dialogconfirm(this.href)
+				});
+			
+	   });
+		
+		
+		
+
+		function checkInputs() 
+		{
+			var configValue = $("#id_config :selected").val()			
+			var environmentValue = $("#id_environment :selected").val()
+			var serverValue = $("#id_server :selected").val()
+			var fileValue = $("#id_file :selected").val()
+			var featureValue = $('#id_feature_name').val()
+			if(/^\d+$/.test(configValue) && /^\d+$/.test(environmentValue) && /^\d+$/.test(serverValue) && /^\d+$/.test(fileValue) && featureValue != '') {
+				$("button span:contains('Create')").parent().attr("disabled", false);
+			} else {
+				$("button span:contains('Create')").parent().attr("disabled", true);
+			}
+		}
+	   function addFeature(){
+
+	        $( "#dialog-add-feature" ).dialog({
+	            resizable: true,
+	            height: "auto",
+	            width: 1400,
+	            modal: false,
+	            buttons: {
+	              Create: function() { 
+	            	  $( this ).dialog( "close" );
+	            	  $('#id_add_feature_form').submit();
+	            	  revertFeatureDefault();
+	              },
+	              Cancel: function() {
+	                  $( this ).dialog( "close" );
+	                  revertFeatureDefault();
+	              }
+	            }
+	          });
+			 $("button span:contains('Create')").parent().attr("disabled", true);
+	   }
+	   function revertFeatureDefault(){
+		   $('#id_environment').val("NoneSelected")
+		   $('#id_server_type').val("NoneSelected")
+		   $('#id_environment').multiselect("refresh");
+		   $('#id_server_type').multiselect("refresh");
+		   $("#id_server").multiselect('dataprovider', []);
+		   $("#id_file").multiselect('dataprovider', []);
+		   $("#id_config").multiselect('dataprovider', []);	 
+		   $('#id_feature_name').val('')
+	   }
+	   function dialogconfirm(url){
+
+	        $( "#dialog-confirm" ).dialog({
+	            resizable: false,
+	            height: "auto",
+	            width: 400,
+	            modal: false,
+	            buttons: {
+	              Yes: function() { 
+	            	  $( this ).dialog( "close" );
+					  window.location = url;
+	              },
+	              No: function() {
+	                  $( this ).dialog( "close" );
+	              }
+	            }
+	          });
+
+	   }
+</script>
+		<div id="dialog-add-feature" title="Adding Feature" style="display: none;">
+			 <div class="col-md-12">
+	            <div class="panel panel-default">
+	                <div class="panel-body">
+	         
+                        <form id='id_add_feature_form' action="{{ request.path }}" class="form-horizontal" method="post">
+						    {% csrf_token %}
+						  	{{ formset.management_form }}
+						  	<input type="hidden" name="addFeature" value="" />	
+						  	 {% for field in form %}	        			
+							       <div class="form-group">
+							           <label class="col-sm-3 control-label" for="id_form-{{form_index}}-{{ field.name }}" {% if field.help_text %} title = "{{ field.help_text }}" {% endif %}
+							           {% if field.is_hidden %} hidden {% endif %}>{{ field.label }}: </label>
+							           <div class=" {% if field|field_type == 'NumberInput' %} col-sm-1
+							           				{% elif field|field_type == 'CheckboxInput' %} col-sm-4 checkbox-align
+							           				{% elif field|field_type == 'Textarea' %} col-sm-10
+							           				{% elif field|field_type == 'Select' %} col-sm-4
+							           				{% else %} col-sm-5		           
+							           				{% endif %} 				           			           
+							           ">
+							           {% if field|field_type == 'CheckboxInput' %} 
+							               {{ field }}
+							           {% elif field|field_type == 'Textarea' %} 
+							               {{ field|attr:"style:width:700px;height:150px;" }}
+							           {% elif field|field_type == 'TextInput' %} 
+							           	   {{ field|attr:"class:form-control" }} 
+							           {% else  %} 
+										   {{ field|attr:"class:form-control"|attr:"style:width:auto;" }} 						   
+							           {% endif %} 	
+							           </div>
+							           {% if field.errors %}
+								           <span class="help-block col-sm-4">
+								                {% for error in  field.errors %}{{ error }}{% endfor %}
+								           </span>
+							           {% endif %}
+							       </div>
+										
+							{% endfor %}
+						   						   
+						  </form>
+	                </div>
+	            </div>
+	        </div>
+	        	  
+	    </div>
+	    {{ form.errors }}
+		{{ form.non_field_errors }}
+		 
+		 <div id="dialog-confirm" title="Confirmation" style="display: none;">
+			  <p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span>
+			         Are you sure you want to delete this feature?
+			  </p>
+		 </div>
+				   
+		  <div class="panel panel-default"  style="border:0;box-shadow:none;background-color:white;">
+	        	  
+        	  <div class="panel-heading"   style="border:0;box-shadow:none;background-color:white;" >
+			        <h2 style="display: inline"><span class="label success">{{team_name}}</span></h2>	
+		      </div>
+	        	  
+	      </div>
+	    
+	           
+	    <div class="panel panel-info" style="overflow:auto" >
+			{% if can_add_feature == True %}
+				<nav class="navbar navbar-default" style="background-color: #f8f8f8;">
+				  <div class="container-fluid">
+			  	  	 <div class="navbar-header">
+				        <a class="navbar-brand">Action:</a>	
+			    	</div>
+				    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+				      <form class="navbar-form navbar-left">   
+				          <button type="button" class="btn btn-default" onclick="addFeature()"><span style="vertical-align: text-top" class="glyphicon glyphicon-plus"></span>Add</button>
+				      </form>			      
+				    </div><!-- /.navbar-collapse -->
+				  </div><!-- /.container-fluid -->
+				</nav>  
+			{% endif %}
+			<div class="panel-heading" align="center"  >
+			    <h1 class="panel-title">
+					<a data-toggle="collapse" href="#id_features">Features</a>
+			    </h1>
+			</div>
+					
+				  {% if featureList %}  
+						<div id="id_features" class="panel-collapse collapse in">
+							<div class="panel-body">	
+								<table class="table  table-bordered sortable" id="tb_result">						
+									<thead>
+								      <tr>
+								      	<th>Name</th>
+								        <th>Server Name</th>
+								        <th>Ignore Server?</th>
+								        <th>Location</th>
+								        <th>Display</th>
+								      </tr>
+								  	</thead>
+								    <tbody>	    	 
+								      	{% for feature in featureList %} 
+									      	<tr class="clickable-row">
+									      		<td>{{feature.name}}
+									      			{% if feature.can_delete_feature == True %}
+									      		    	&nbsp<a class="delete" href="{% url 'configModifier_feature' pk=feature.id action='delete' %}" ><img  class="hover-action" style="display: none;" src="{% static 'images/smallDelete.png' %}" width="10" height="10"></a>
+									      			{% endif %}
+									      			{% if feature.can_edit_feature == True %}
+									      				&nbsp<a href="{% url 'configModifier_feature' pk=feature.id action='edit' %}"><img   class="hover-action" style="display: none;" src="{% static 'images/smallEdit.png' %}" width="10" height="10"></a>
+									      			{% endif %}
+									      		</td>
+									      		<td>{{feature.server_name}}</td>
+									      		<td>{{feature.ignore_server}}</td>
+									      		<td>{{feature.location}}</td>
+									      		<td>{{feature.display}}</td>
+									      	</tr>
+						 				{% endfor %}
+				
+								    </tbody>
+								</table>
+							</div><!-- panel-body -->
+						</div>	<!-- id_features -->
+					     
+				{% endif %}				
+				  <!-- <div class="col-sm-offset-3 col-sm-10">
+					<button type="button" class="btn btn-primary btn-sm" onclick="addFeature()" >Add Feature</button>
+				  </div> -->
+		 </div> <!-- panel -->
+			   
+
+	  
+	        	  
+{% endblock %}
+
+
+
+

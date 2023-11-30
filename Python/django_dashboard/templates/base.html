@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en"> 
+   
+  {% load static %}
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="https://getbootstrap.com/favicon.ico">
+
+    <title>GreenDot Service HealthCheck System - {% block title %} Welcome {% endblock %} </title>
+
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+	<!-- <link rel="stylesheet" href="{% static 'bootstrap-3.3.7/dist/css/bootstrap.min.css' %}" > -->
+		
+	<!-- jQuery library -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script> 
+    <!-- <script src="{% static 'js/jquery.min.js' %}"></script> -->
+    <!-- Bootstrap core CSS -->  
+ 	<link href="{% static 'bootstrap-3.3.7/docs/examples/dashboard/dashboard.css' %}" rel="stylesheet">
+	<link href="{% static 'bootstrap-3.3.7/docs/assets/css/ie10-viewport-bug-workaround.css' %}" rel="stylesheet">
+    <link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/themes/smoothness/jquery-ui.css" rel="stylesheet" >
+	<!-- <link href="{% static 'css/jquery-ui.css' %}" rel="stylesheet" /> -->
+    
+	<link href="{% static 'css/bootstrap-multiselect.css' %}" rel="stylesheet" />
+	<link href="{% static 'css/glyphicon-spacing.css' %}" rel="stylesheet" />
+	<link href="{% static 'css/bootstrap-sortable.css' %}" rel="stylesheet" />
+	<link href="{% static 'css/glyphicon-refresh-animate.css' %}" rel="stylesheet" />
+	<link href="{% static 'css/common.css' %}" rel="stylesheet" />
+	
+	<!-- DataTables CSS -->
+	<link href="{% static 'css/jquery.dataTables.min.css' %}" rel="stylesheet"/>
+	<!-- <link href="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js" rel="stylesheet" > -->
+	<!-- DataTables JS -->
+	<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+	<!-- <script src="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"></script> -->
+	
+	
+    <!-- Common js -->
+	<script src="{% static 'js/common.js' %}"></script>
+
+     {% block head_block %}
+     {% endblock %}
+
+    {% block style %}
+    	<style>body { padding-top: 100px; }</style>
+    {% endblock %}
+
+  </head>
+
+  <body>
+
+	<nav class="navbar navbar-fixed-top">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<img id="logo_img" src="{% static 'images/greendot.png' %}" width="45" height="48">&nbsp&nbsp&nbsp
+			</div>
+			<ul class="nav navbar-nav">
+				<li><a href="{% url 'healthcheck' %}">API Healthcheck</a></li>
+
+				<li><a href="{% url 'configModifier' %}">ConfigModifier</a></li>
+
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Encryption Decryption<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'encryptDecryptUtility' %}">Encryption Decryption</a></li>
+						<li><a href="{% url 'TokenizationUtility' %}">Tokenization</a></li>
+        			</ul>
+        		</li>
+
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Finders<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'queries' %}">Query Finder</a></li>
+						<li><hr class="dropdown-divider" /></li>
+
+						<li><a href="{% url 'customerFinder' %}">Customer Finder</a></li>
+						{% if user.is_authenticated and perms.customerFinder.configure_customer_finder %}
+							<li><a href="{% url 'customerConfig' %}">Customer Configuration</a></li>
+						{% endif %}
+						<li><hr class="dropdown-divider" /></li>
+						<li><a href="{% url 'card_finder' %}">Card Finder</a></li>
+						<li><a href="{% url 'dmwn_card_finder' %}">DM / WN Card Finder</a></li>
+						<li><hr class="dropdown-divider" /></li>
+
+						<li><a href="{% url 'spfinder' %}">SP Finder</a></li>
+        			</ul>
+        		</li>
+
+				<li><a href="{% url 'jiratool' %}">Jira Tool</a></li>
+
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Monitors<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'monitor' %}">QA Infrastructure Monitor</a></li>
+						<li><hr class="dropdown-divider" /></li>
+						<li><a href="{% url 'testdataMonitor' %}">TestData Monitor</a></li>
+						{% if user.is_authenticated and perms.customerFinder.configure_customer_finder %}
+							<li><a href="{% url 'testdataMonitorConfig' %}">TestData Monitor Configuration</a></li>
+						{% endif %}
+
+        			</ul>
+        		</li>
+
+
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">TestRail Reports<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'testrail_report' %}">TestRail Audit Report</a></li>
+						<li><a href="{% url 'case_report' %}">TestRail Case Report</a></li>
+						<li><hr class="dropdown-divider" /></li>
+						<li><a href="{% url 'coverage' %}">Automation Coverage</a></li>
+        			</ul>
+        		</li>
+
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Utility<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'pts_utility' %}">PTS Utility</a></li>
+						<li><a href="{% url 'baas_utility' %}">BaaS Utility</a></li>
+                        <li><a href="{% url 'aci_utility' %}">ACI Utility</a></li>
+        			</ul>
+        		</li>	
+
+                <li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Services<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="https://gdqatools/GDQATools/LogSearchService/swagger/index.html" target="_blank">Log Search Service</a></li>
+						<li><a href="https://gdqatools/GDQATools/CosmosDBService/swagger/index.html" target="_blank">CosmosDB Service</a></li>
+                        <li><a href="https://gdqatools/GDQATools/CvvUpdateService/swagger/index.html" target="_blank">CVV Update Service</a></li>
+        			</ul>
+        		</li>
+
+				<li><a href="{% url 'BrowserStackApps' %}">BrowserStackApps</a></li>
+				
+				<li class="dropdown">
+					<a class="dropdown-toggle" data-toggle="dropdown" href="#">Tools<span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{% url 'license' %}">ReadyAPI License</a></li>
+						<li><a href="{% url 'get_user' %}">Check License User</a></li>
+						<li><a href="{% url 'check_free_license' %}">Check Free License</a></li>
+						<li><a href="{% url 'check_disable_account' %}">Check Disabled User</a></li>
+						<li><a href="{% url 'encrypt' %}">ReadyAPI Encrypt</a></li>
+        			</ul>
+        		</li>	
+				
+			</ul>
+			<ul class="nav navbar-nav navbar-right">
+				{% if user.is_authenticated %}
+					<li>
+						<p class="navbar-text">Logged in as: {{ user.username }}</p>
+					</li>
+					<li>
+						<a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-out"></span> Logout</a>
+					</li> 
+				{% else %}
+					<li><a href="{% url 'login' %}"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+				{% endif %}
+				&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+			</ul>
+		</div>
+	</nav>
+	
+	{% block container_block %}
+	{% endblock %}
+	
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/jquery-ui.min.js"></script>
+    <!--  <script src="{% static 'js/jquery-ui.min.js' %}"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+    <!--  <script src="{% static 'bootstrap-4.0.0-beta/assets/js/vendor/popper.min.js' %}"></script> -->
+     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<!--  <script src="{% static 'bootstrap-3.3.7/dist/js/bootstrap.min.js' %}"></script> -->
+	<!-- <script src="https://getbootstrap.com/assets/js/vendor/holder.min.js"></script> -->
+	<script src="{% static 'bootstrap-3.3.7/docs/assets/js/vendor/holder.min.js' %}"></script>
+    <!--  <script src="https://getbootstrap.com/assets/js/ie10-viewport-bug-workaround.js"></script> -->
+	<script src="{% static 'bootstrap-3.3.7/docs/assets/js/ie10-viewport-bug-workaround.js' %}"></script>
+    <!-- <script src="https://getbootstrap.com/assets/js/ie-emulation-modes-warning.js"></script> -->
+    <script src="{% static 'bootstrap-3.3.7/docs/assets/js/ie-emulation-modes-warning.js' %}"></script>
+	<script src="{% static 'js/bootstrap-multiselect.js' %}"></script>
+	<script src="{% static 'js/bootstrap-sortable.js' %}"></script>
+	<script src="{% static 'js/moment.min.js' %}"></script>
+	
+	
+	<script>
+<!--		$(document).ready(function() {-->
+<!--			-->
+<!--			$('.table.table-striped.table-hover.table-condensed.table-bordered.dataTable').DataTable({-->
+<!--				"order": [[ 0, 'asc' ]],-->
+<!--				"lengthMenu": [[25, 50, 75, -1], [25, 50, 75, "All"]],-->
+<!--			});-->
+<!--			-->
+<!--		});-->
+	</script>
+	
+	{% block script_block %}
+	
+    {% endblock %}    
+  </body>
+</html>

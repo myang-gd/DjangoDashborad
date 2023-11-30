@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% load staticfiles %}
+
+{% block title %}Login{% endblock %}
+
+{% block container_block %}
+
+	<div class="container" style="text-align:center">
+	
+		<h1>Login</h1>
+		<br />
+		<br />
+		<br />
+		<h3>Please log in with your Windows credentials:</h3>
+		<br />
+		{% if form.errors and not form.non_field_errors %}
+			<p class="errornote">
+				{% if form.errors.items|length == 1 %}Please correct the error below.{% else %}Please correct the errors below.{% endif %}
+			</p>
+		{% endif %}
+		
+		{% if form.non_field_errors %}
+			{% for error in form.non_field_errors %}
+				<p class="errornote">
+				    {{ error }}
+				</p>
+			{% endfor %}
+		{% endif %}
+	
+	
+		<form action="{% url 'login' %}" method="post" class='form-signin' role="form">
+			{% csrf_token %}
+			
+			<div class="row">
+				<div class="col-lg-4"></div>
+            	<div class="col-lg-4">
+            		<div class="form-group">
+            			<input class="form-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" type="text" placeholder='Username' required autofocus /> 
+            			<input class="form-control" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" type="password" placeholder='Password' required />
+       				</div>  				
+        			<button class="btn btn-md btn-warning btn-block" type="submit">Log in</button>
+       				<input type="hidden" name="next" value="{{ next }}" />
+       			</div>
+       			<div class="col-lg-4"></div>
+            </div>
+        </form>
+	</div>
+
+{% endblock container_block %}

@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+{% load common_tags %}
+{% load staticfiles %}
+{% block title %}TestRail Case Report{% endblock %}
+
+{% block head_block %}
+	<link href="https://cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css" rel="stylesheet" />
+	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.css"/>
+{% endblock %}
+
+{% block script_block %}
+	<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/pdfmake-0.1.18/dt-1.10.12/b-1.2.1/b-flash-1.2.1/b-html5-1.2.1/b-print-1.2.1/datatables.min.js"></script>
+	<script type="text/javascript">
+		
+		function resetProjectDropDown()
+		{
+			$('#projectID option:selected').each(function(){ $(this).prop('selected', false) })
+			$('#projectID').multiselect('refresh')
+			$('#projectID').multiselect('enable')
+
+			$('#projectLabelLink').bind('click', false)
+			$('#projectLabelLink').prop('href', '')
+		}
+
+		// default disable=true
+		function resetSuiteDropDown(disable)
+		{
+			$('#suiteID option:selected').each(function(){ $(this).prop('selected', false) })
+			$('#suiteID').multiselect('refresh')
+
+			if (typeof disable === 'undefined')
+			{
+				disable = true
+			}
+			$('#suiteID').multiselect(disable ? 'disable' : 'enable')
+		}
+
+
+		function resetTable()
+		{
+			$('#caseTable').prop('hidden', true)
+			if (typeof window.dtable !== 'undefined')
+			{
+				$('#caseTable').DataTable().destroy()
+			}
+		}
+		function hideProgressBar()
+		{
+			document.getElementById("progressbar_div_id").style.visibility = 'hidden';
+		}
+		/* Clears all selected fields from the form.
+		 * Called when #resetButton is clicked.
+		 */
+		function clearAll()
+		{
+			resetProjectDropDown()
+			resetSuiteDropDown()
+			hideProgressBar()
+			$('#exportButton').prop('disabled', true)
+
+			resetTable()
+		}
+
+
+		/* Receives suites from server, based on selected #projectID.
+		 * Populates #suiteID dropdown menu with the corresponding suites.
+		 */
+		function onProjectSelected(response, result, responseDataObject)
+		{
+			var suites_list = []
+			var receivedData = responseDataObject.responseJSON
+			if (receivedData.hasOwnProperty('suites'))
+			{				
+				suites_list = receivedData['suites']
+			} 
+			$('#suiteID').multiselect('dataprovider', suites_list)
+			$('#suiteID').multiselect('enable')
+		}
+
+
+		/* Sends a request to the server for the suites of project with #projectID.
+		 * Enables/disables #suiteID dropdown menu accordingly.
+		 */
+		function processProjectsDropDownChange(option, element, checked)
+		{
+			resetSuiteDropDown()
+			// projectSelected should be project ID
+			var projectSelected = $(option).val()
+			var noneSelected = projectSelected.toUpperCase() == 'NONE'
+
+			$('#projectLabelLink').prop('href', linkToProject(projectSelected))
+			$('#projectLabelLink').unbind('click', false)
+
+			$('#suiteID').prop('disabled', noneSelected)
+			$('#generateButton').prop('disabled', noneSelected)
+			if (!noneSelected)
+			{
+				$('#projectID').prop('selected', !noneSelected)
+				$.ajax({
+					url: '/case_report',
+					type: 'GET',
+					dataType: 'json',
+					data: {'project_id': projectSelected},
+					success: onProjectSelected
+				})
+			}
+		}
+
+
+		/* Retrieves and processes cases after suites are selected
+		 * and #generateButton is clicked.
+		 * Calls onCasesReceived upon successful retrieval.
+		 */
+		/* function getCasesFromSuites()
+		{
+			var projectSelected = $('#projectID').val()
+			var suitesSelected = $('#suiteID').val()
+			$.ajax({
+				url: '/case_report',
+				type: 'GET',
+				dataType: 'json',
+				data: {'suite_ids': suitesSelected},
+				success: onSuitesSelected
+			})
+		}
+ */
+		/* Returns a string URL linking to the Project's overview page on TestRail */
+		function linkToProject(projectID)
+		{
+			var baseURL = 'https://gdcqatestrail01/testrail/index.php?/projects/overview/'
+			return baseURL + projectID
+		}
+
+		/* Returns a string URL linking to the test case's page on TestRail */
+		function linkToCase(caseID)
+		{
+			var baseURL = 'https://gdcqatestrail01/testrail/index.php?/cases/view/'
+			return baseURL + caseID
+		}
+
+
+		/* Dynamically constructs #caseTable with results from AJAX call.
+		 * cases is a list of dicts (representing cases)
+		 *    e.g., [{'id': xxxx, 'title': 'test case title', ...}]
+		 */
+
+		/* function populateCaseTable(cases)
+		{
+			
+			// get test case categories from response
+			// set up table headers
+			// ---------------------------------------------------------
+			// |               |         |           |    validation   |
+			// | serial number | case ID | test type | passed | failed |
+			var table_array = ['<thead>',
+							   '<tr>',
+							   '<th style="text-align:center">Sr. No.</th>',
+							   '<th style="text-align:center">Test Case ID</th>',
+							   '<th style="text-align:center">Test Case Name</th>',
+							   '<th style="text-align:center">Section Name</th>',
+							   '<th style="text-align:center">Suite Name</th>',
+							   '</tr>',
+							   '</thead>',
+							   '<tbody>']
+
+			// add each case in its own row			
+			for (var i = 0; i < cases.length; ++i)
+			{
+				// serial number (counter)
+				table_array.push('<tr>')
+				table_array.push('<td style="text-align:center">' + (i + 1) + '</td>')
+
+				// header is each individual test case category
+				// for larger ordered dic sometimes oder is lost so hard code the header
+				var header_list = ['id','title', 'section', 'suite']
+				for (var h=0; h<header_list.length; h++)
+				{
+					var header = header_list[h]
+					var value = cases[i][header]
+					switch (header)
+					{
+						case 'id':
+							// hyperlink to case
+							table_array.push('<td>')
+							table_array.push('<a target="_blank" href="' + linkToCase(value) + '">')
+							table_array.push('<div align="center" style="height:100%;width:100%">')
+							table_array.push(value)
+							table_array.push('</div>')
+							table_array.push('</a>')
+							table_array.push('</td>')
+							break
+
+						default:
+							table_array.push('<td style="text-align:center">' + value + '</td>')
+					}
+				} 
+				table_array.push('</tr>')
+			}
+			table_array.push('</tbody>')
+			$('#caseTable').html(table_array.join(''))
+			window.dtable = $('#caseTable').DataTable({
+				paging: true,
+				pagingType: 'full_numbers'
+			}) 
+		} */
+		
+
+		/* Processes received suites from server.
+		 * Populates #caseTable with results.
+		 * responseDataObject.responseJSON format:
+		 *   {'cases': [dict]}
+		 */
+		/* function onCasesReceived(response, result, responseDataObject)
+		{
+			disableProgressBar() 
+			var receivedData = responseDataObject.responseJSON
+			if (receivedData.hasOwnProperty('cases') && receivedData.hasOwnProperty('is_canceled'))
+			{
+				var cases_list = receivedData['cases']
+				var is_canceled = receivedData['is_canceled']
+				if (!is_canceled)  {
+					populateCaseTable(cases_list)
+					$('#caseTable').prop('hidden', false)
+				}
+				
+			} 
+
+			$('#exportButton').prop('disabled', false)
+			$('#generateButton').prop('disabled', false)
+		} */
+
+
+		/* Retrieves and processes cases after suites are selected
+		 * and #generateButton is clicked.
+		 * Calls onCasesReceived upon successful retrieval.
+		 * Disables #generateButton until table has been populated.
+		 */
+		/* var generate_count = -1
+		
+		function generateCases()
+		{
+			generate_count += 1
+			$('#X-Progress-ID').val($('#X-Progress-ID').val() + generate_count.toString())
+			
+			$('#generateButton').prop('disabled', true)
+			resetTable()
+			resetProgressBar()
+			enableProgressBar() 
+		    clearMessage()
+		
+			var projectSelected = $('#projectID').val()
+			var suitesSelected = $('#suiteID').val()
+			var progressID = $('#X-Progress-ID').val()
+			$.ajax({
+				url: '/case_report/',
+				type: 'POST',
+				dataType: 'json',
+				data: {'is_generate': true,
+					   'project_id': projectSelected,
+					   'suite_ids': suitesSelected,
+					   'X-Progress-ID' : progressID, 
+					   'csrfmiddlewaretoken' : '{{ csrf_token }}',},
+				success: onCasesReceived,
+				complete: function(data) {
+					disableProgressBar()
+					hideProgressBar()
+					resetProgressBar()
+				},
+			})
+				
+			
+		} */
+		
+		var progressBarInterval = null
+		
+		function enableProgressBar(){
+			progressBarInterval = setInterval(function(){ updateProgressBar() }, 1000);
+			document.getElementById("progressbar_div_id").style.visibility = 'visible';
+		}
+		/* function resetProgressBar()
+		{
+			progress = 0;
+    		document.getElementById("progressbar_value_id").innerText  = progress+'%';
+			$('#progressbar_id').css('width', progress+'%').attr('aria-valuenow', progress); 
+		} */
+		function updateProgressBar() {
+		    var d = new Date();
+		    var t = d.toLocaleTimeString();
+		    var ProgressID = document.getElementById("X-Progress-ID").value
+		    $.ajax({
+		        url : "/case_report/get_progress",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"X-Progress-ID" : ProgressID},
+		        success: 
+		        	function(response, result, responseDataObject) 
+		        	{
+			        	var jsonData = responseDataObject.responseJSON
+			        	if(jsonData.hasOwnProperty('progress')){
+			        		progress = jsonData['progress'].toString();
+			        		document.getElementById("progressbar_value_id").innerText  = progress+'%';
+							$('#progressbar_id').css('width', progress+'%').attr('aria-valuenow', progress); 
+			        	}
+		        	}
+			});
+		}
+		function disableProgressBar() {
+		    clearInterval(progressBarInterval);
+		}
+
+        function cancelProgress() {
+        	var ProgressID = document.getElementById("X-Progress-ID").value
+        	$.ajax({
+		        url : "/case_report/cancel_progress",
+		        type : "GET",
+		        dataType: "json",
+		        data : {"X-Progress-ID" : ProgressID},
+		        success: disableProgressBar
+
+			});
+        }
+		
+		function clearMessage(){
+			$("#messages").empty();
+		}
+		function addMessage(text, extra_tags) {
+		    var message = $('<li class="'+extra_tags+'">'+text+'</li>')
+		    $("#messages").append(message);
+		}
+		/* Opens /testrail_report/download/xxx.xlsx,
+		 * downloading the report generated.
+		 */
+		function exportToExcel()
+		{
+			window.open("{% url 'download_case_report' %}", '_blank')
+		}
+	
+		/* "main" */
+		$(document).ready(function()
+		{
+			disableProgressBar()
+			hideProgressBar()
+			$('#projectLabelLink').bind('click', false)
+			$('#projectID').multiselect({
+				enableCaseInsensitiveFiltering: true,
+				onChange: processProjectsDropDownChange
+			})
+
+			$('#suiteID').multiselect({
+				includeSelectAllOption: true,
+				enableCollapsibleOptGroups: true,
+				enableFiltering: true,
+				enableClickableOptGroups: true,
+				enableCaseInsensitiveFiltering: true,
+				allSelectedText: '(All)',
+			})
+
+			$('#resetButton').on('reset', clearAll)
+			clearAll()
+			var table = $('#tb_result').DataTable( {
+			    	scrollCollapse: true, 
+			    	dom: 'Bfrtip',
+			         buttons: [
+			            'csv', 'excel','print'
+			         ]
+			      }
+			    ); 
+	
+		})
+      /*   $( document ).ajaxComplete(function(e, xhr, settings) {
+			 
+		        var contentType = xhr.getResponseHeader("Content-Type");
+		
+		        if (contentType == "application/javascript" || contentType == "application/json") {
+		            var json = $.parseJSON(xhr.responseText);
+		
+		            $.each(json.django_messages, function (i, item) {
+		                addMessage(item.message, item.extra_tags);
+		            });
+		        }
+		    }) */
+	</script>
+{% endblock %}
+
+
+{% block container_block %}
+	<div class="container-fluid">
+    	<div class="row">
+    		<div class="col-sm-3 col-md-1 sidebar">
+        		{% block side_block %}
+         			<!-- sidebar -->
+         		{% endblock %}
+         	</div>
+	
+        	<div class="col-sm-9 col-sm-offset-3 col-md-11 col-md-offset-1 main">
+        		{% block body_block %}
+			   <ul id="messages" >
+			   </ul>
+			   <p class="errornote">
+					  {% block message_block %}
+							{% if messages %}
+								<ul class="messages">
+									{% for message in messages %}
+									    <li {% if message.tags %} class="{{ message.tags }}" {% endif %}><b>{{ message }}</b></li>
+									{% endfor %}
+								</ul>
+							{% endif %}
+					  {% endblock %}
+				</p>
+         		<div>
+        			<form id="filter-form" class="form-horizontal" role="form" method="post">
+						{% block body_block_form_items %}
+							{% csrf_token %}
+
+							<!-- Project Dropdown Menu -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="projectID">
+									<a id="projectLabelLink" target="_blank" href="">
+										Project:
+									</a>
+								</label>
+								<div class="col-sm-10">
+									<select class="form-control" id="projectID" name="project" autofocus>
+										{% if projects %}
+												<option value="NONE">
+													None selected
+												</option>
+											{% for key, value in projects.items %}
+											<!-- key=project_id, value=project_name -->
+										    	<option value="{{ key }}">
+										    		{{ value }}
+										    	</option>
+										    {% endfor %}
+										{% endif %}
+						  			</select>
+								</div>
+							</div>
+
+							<!-- Suites Dropdown Menu -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="suiteID">
+									Test Suites:
+								</label>
+								<div class="col-sm-10">
+									<select class="form-control" id="suiteID" name="suite" multiple="multiple" disabled>
+										<option value="NONE">
+											None selected
+										</option>
+									</select>
+								</div>
+							</div>
+														
+							<!-- Get all case checkbox -->
+							<div class="form-group">
+								<label class="control-label col-sm-2" for="allcasesID">
+									All cases from TestRail:
+								</label>
+								<div class="col-sm-2">								
+									<input name="allcases" type="checkbox" id="allcasesID">
+								</div>
+							</div>
+							
+							<!-- Generate Button -->
+							<div class="form-group">
+								<div class="col-sm-offset-2 col-sm-10">
+									<button type="submit"
+											id="generateButton"
+											class="btn btn-default btn-success"
+											onclick="enableProgressBar()"
+ 											disabled> 
+											<span class="glyphicon glyphicon-play">
+											</span>
+											Generate
+									</button>
+									
+									<!-- Reset Button -->
+									<button type="reset"
+											id="resetButton"
+											class="btn btn-default btn-warning"
+											onclick="clearAll()">
+											<span class="glyphicon glyphicon-refresh">
+											</span>
+											Reset
+									</button>
+
+									<!-- Export Excel Button -->
+									<button type="button"
+											id="exportButton"
+											class="btn btn-default btn-secondary"
+											onclick="exportToExcel()" 
+											disabled >
+											
+											<span class="glyphicon glyphicon-save-file"></span>
+											Export Excel
+									</button>
+									<input type="hidden" id="X-Progress-ID" name="X-Progress-ID" value="{% get_uuid %}"/> 
+								</div>
+							</div> <!-- form-group -->
+							<!-- Progressbar -->
+                            <div id="progressbar_div_id">
+								<div class="progress progress_inline">
+									<div id="progressbar_id" class="progress-bar progress-bar-success progress-bar-striped" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+									</div>		
+								</div>
+								<label id="cancel-label" class="label-danger" onclick="cancelProgress()"><span class="glyphicon glyphicon-remove"></span></label>
+								<span id="progressbar_value_id" ></span>
+	        		    	</div>
+							<!-- Cases Table -->
+							<div class="form-group">
+								<div class="col-sm-10">
+									<!-- <table id="caseTable" class="display nowrap" border="1" cellspacing="0" width="100%">
+									</table> -->
+									<table class="table table-striped table-bordered sortable" id="tb_result">						
+										<thead>
+									      <tr>
+									        <th>Sr. No</th>
+									        <th>Test Case ID</th>
+									        <th>Test Case Name</th>
+									        <th>Section Name</th>
+									        <th>Suite Name</th>
+									        <th>Automation Type</th>
+									      </tr>
+							    		</thead>
+									    <tbody>
+									    	{% if cases and is_canceled != True %}	
+										   		{% for case in cases %}
+										   			{% with forloop.counter as case_index %} 
+										   			<tr>
+										   				<td>{{case_index}}</td>	
+											      		<td><a target="_blank" href="https://gdcqatestrail01/testrail/index.php?/cases/view/{{case.id}}"><div align="center" style="height:100%;width:100%">{{case.id}}</div></a></td>								      
+										      			<td>{{case.title}}</td>										        	
+											      		<td>{{case.section}}</td>										        	
+											      		<td>{{case.suite}}</td>	
+											      		<td>{{case.custom_automation_type}}</td>											      													        	
+										     		</tr>
+										     		{% endwith %}
+										     	{% endfor %}
+										     {% endif %}
+									    </tbody>
+									</table>
+								</div>
+							</div>
+
+						{% endblock %}
+					</form>
+				</div>
+				{% endblock %}
+			</div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,46 @@
+<div class="section" id="monitors">
+	<h3>{{ title }}</h3>
+	<br/>
+	
+	<table class="table table-striped table-hover table-condensed table-bordered dataTable">
+		<thead>
+			<tr class="alert alert-warning">
+				<th>Id</th>
+				<th>Name</th>
+				<th>Description</th>
+				<th>Environment</th>
+				<th>Project</th>
+				<th>Product Code</th>
+				<th>Interval Days</th>
+				<th>IPS</th>
+				<th>Multiple Layer</th>
+				<th>Email Prefix</th>
+				<th>UserID Prefix</th>
+				<th>Scheduled StartTime</th>
+				<th>Append Query Clause</th>
+				<th>Create By</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for monitor in monitors %}
+			<tr class="success branch expanded">
+				<td><a style="text-decoration: underline;" href="{% url 'testdataMonitorRuns' monitor.id %}">{{ monitor.id }}</a></td>
+				<td>{{ monitor.name }}</td>
+				<td>{{ monitor.description }}</td>
+				<td>{{ monitor.environmentName }}</td>
+				<td>{{ monitor.projectName }}</td>
+				<td>{{ monitor.productCode }}</td>
+				<td>{{ monitor.intervalDays }}</td>
+				<td>{{ monitor.isIPS }}</td>
+				<td>{{ monitor.multipleLayer }}</td>
+				<td>{{ monitor.emailPrefix }}</td>
+				<td>{{ monitor.userIDPrefix }}</td>
+				<td><input type="datetime-local" disabled="disabled" value="{{ monitor.scheduledStartTime }}" style="width: 218px;"></input></td>
+				<td>{{ monitor.appendQueryClause }}</td>
+				<td>{{ monitor.createBy }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
+

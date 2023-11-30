@@ -1,0 +1,21 @@
+{% if vips %}
+    <ul class="nav nav-sidebar">
+    	<li> 
+    		<a href="{% url 'healthcheck' %}">Run</a>
+    		<a href="{% url 'schedule' %}">Schedule</a>
+    	</li>
+    	<hr>
+    {% for vip in vips %}
+    	{% if vip == active_vip %} 
+    		<li  class="active" > 
+    	{% else  %} 
+    		<li>
+    	{% endif %}
+        <a href="{% url 'get_all_servers'  vip.displayName %}">{{ vip.displayName }}</a></li>
+    {% endfor %}
+
+{% else %}
+    <li> <strong >There are no vips present.</strong></li>
+
+    </ul>
+{% endif %}

@@ -1,0 +1,817 @@
+﻿{% extends 'base.html' %}
+
+{% load static %}
+
+{% block head_block %}
+<!--	<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>-->
+<!--	<script src="https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js"></script>-->
+<!--	<script src="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap4.min.css"></script>-->
+<!--	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css"></script>-->
+<script src="{% static 'js/jquery.blockUI.js' %}"></script>
+<script src="{% static 'plugins/jquery-resizable-master/dist/jquery-resizable.js' %}"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            padding:2px;
+            margin: 2px;
+            overflow: auto;                           
+        }
+        .page-header { margin: 0px; }
+        .page-header {
+            display: flex;
+            flex-direction: row;
+            border: double;
+            overflow: hidden;
+            height: 60px;
+            width: 100%;
+            background: white;
+        }
+
+        .page-container { margin: 0px; }
+
+        /* horizontal panel*/
+        .panel-container {
+            display: flex;
+            flex-direction: row;   
+            border: double;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+        }
+        .panel-left {
+            flex: 0 0 auto;  /* only manually resize */
+            padding: 10px;
+            width: 700px;
+            height: 100%;
+            min-width: 300px;
+            white-space: nowrap;
+            background: white;
+            color: black;
+
+        }
+
+        .panel-right{
+            flex: 1 1 auto; /* resizable */
+            padding: 10px;
+            width: 100%;
+            height: 100%;
+            min-width: 200px !important;   /* NOTE: This won't be respected! Explicit size of left forces the size to be fixed */
+            background: white;
+            color: black;
+            overflow-y:auto;
+        }
+
+        .splitter {
+            flex: 0 0 auto;
+            width: 5px;
+            background: url({% static 'plugins/jquery-resizable-master/assets/vsizegrip.png' %}) center center no-repeat grey;
+            min-height: 200px;
+            cursor: col-resize;
+        }
+
+        /* vertical panel */
+       .panel-container-vertical {
+            display: flex;
+            flex-direction: column;   
+            height: 100%;
+            border: 1px solid silver;         
+            overflow: hidden;
+        }
+        .panel-top {
+            flex: 0 0 auto;  /* only manually resize */
+            padding: 0px;
+            height: 500px;
+            min-height: 500px !important;
+            max-height: 570px !important;
+            width: 100%;
+            white-space: nowrap;
+            background: white;
+            color: black;
+        }
+        .splitter-horizontal {
+            flex: 0 0 auto;
+            height: 5px;
+            background: url({% static 'plugins/jquery-resizable-master/assets/hsizegrip.png' %}) center center no-repeat grey;
+            cursor: row-resize;
+        }
+        .panel-bottom {
+            flex: 1 1 auto; /* resizable */
+            padding: 10px;
+            min-height: 400px !important; /* NOTE: This won't be respected! Explicit resize forces size of this panel */
+            background: white;
+            color: black;
+        }
+
+        div.bordered {
+		  border: double;
+		}
+		div.dataTables_wrapper {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        #rel_content_paginate {
+           float: right !important;
+        }
+
+        tr.selected {
+    		background-color: green !important;
+		}
+        #db_info {
+			font-style: italic;
+			font-weight: bold;
+			color: blue;
+		}
+
+        .dataTables_filter { float: right; text-align: right; }
+        #update_query { float: right; text-align: center; width: 100px; }
+
+        input[type=search]::-webkit-search-cancel-button {
+           -webkit-appearance: searchfield-cancel-button;
+        }
+
+    </style>
+
+
+{% endblock %}
+
+{% block script_block %}
+
+    <script type="text/javascript">
+	var api_endpoint = "https://gdqatools:8300/api/"
+	//var api_endpoint = "/api/"
+	var query_result_table = null
+	var exec_result_table = null
+   	var selected_query_id = ''
+   	var selected_row = null
+   	var selected_params = {}
+   	var selected_target_server = null
+   	var is_allow_commit = false
+
+    $(document).ready(function(){
+		$('#img_no_fav').hide()
+		$('#img_fav').hide()
+		$('#img_unlocked').hide()
+		$('#img_locked').hide()
+		$('#update_query').hide()
+
+		$('#img_no_fav').on('click', function(){ $("#is_favorite").click() })
+		$('#img_fav').on('click', function(){ $("#is_favorite").click() })
+
+		$(".panel-left").resizable({
+            handleSelector: ".splitter",
+            resizeHeight: true
+        });
+
+        $(".panel-top").resizable({
+            handleSelector: ".splitter-horizontal",
+            resizeWidth: true
+        });
+
+	});
+
+	function favorite_queries(){
+   	    selected_query_id = ''
+   		selected_row = null
+		load_queries(api_endpoint + 'favorite_queries/?format=json&login_user={{login_user}}')
+	};
+
+	function my_queries(){
+   	    selected_query_id = ''
+   		selected_row = null
+		load_queries(api_endpoint + 'my_queries/?format=json&login_user={{login_user}}')
+	};
+
+    function search() {
+        if(event.keyCode == 13) {
+            search_queries();
+        }
+    }
+
+	function search_queries(){
+		selected_query_id = '';
+   		selected_row = null;
+   		selected_params = {};
+		$('#selected_query').val('');
+		$('#query_script').val('');
+		$('#parameter').val('{}');
+		var sc_condition = $('#search_condition').val().trim()
+
+		$('#hidden_form').find("input[type=text]").val(sc_condition);
+		$('#hidden_form').find("input[type=submit]").click();
+
+		load_queries(api_endpoint + 'search_queries/?condition=' + sc_condition + '&format=json&login_user={{login_user}}')
+	};
+
+
+	function update_query(){
+	    if(selected_query_id==''){
+	        show_error_dialog('No query selected, please select one query that in the search result panel at first.');
+	        return
+	    }
+
+		var sql = $("#query_script").val().trim()
+
+		var request_data = {
+			"id": selected_query_id,
+			"sql": sql,
+			"login_user": "{{login_user}}"
+		}
+
+		$.blockUI({message: '<h1>Saving...</h1>' });
+		$.ajax({
+				type: "POST",
+				url:  api_endpoint + "quick_update_query/",
+				//headers:  {"X-CSRFToken": "{{ csrf_token }}"},
+				data:  {"my_json_data": JSON.stringify(request_data)},
+					success: function(data) {
+						if(String(data['success']) == "true"){
+						        $.unblockUI();
+						        selected_row.data()['sql'] = sql;
+							}
+						else{
+						    $.unblockUI();
+							show_error_dialog('Save query script failed : ' + String(data['error']));
+					    }
+					},
+					error: function(data) {
+					    $.unblockUI();
+						show_error_dialog('Save query script failed: ' + String(data['error']));
+					}
+		});
+
+	};
+
+
+	function load_queries(ajax_url){
+		if (query_result_table != null){
+			query_result_table.destroy();
+		}
+
+		query_result_table = $('#rel_content').DataTable({
+			pagingType: 'full',
+			"bLengthChange": false,
+			"pageLength": 50,
+			language: {
+			    "search": "_INPUT_",
+                "searchPlaceholder": "Search",
+				paginate: {
+					first:    '«',
+					previous: '‹',
+					next:     '›',
+					last:     '»'
+				}
+			},
+			searching: true,
+			order: [[ 1, "asc" ]],
+			"scrollY": 300,
+            "scrollX": true,
+			ajax: {
+				url : ajax_url,
+				type : "GET",
+				dataType: "json",
+				dataSrc: ""
+
+			},
+			deferRender: true,
+			columns: [
+			   {data: "id",	title: "Id", type: "hidden", visible: false },
+			   {data: "name", title: "Name"},
+			   {data: "category", title: "category", visible: true},
+			   {data: "sql", title: "sql", visible: false},
+			   {data: "is_favorite", title: "is_favorite", visible: false},
+			],
+		});
+		result_selected();
+	}
+
+	function result_selected(){
+		$(query_result_table.table().container()).on( 'click', 'tr', function () {
+			var row = query_result_table.row( this );
+			selected_row = row
+			$('#query_desc').val(row.data()['description']);
+            $('#query_script').val(row.data()['sql']);
+            $('#selected_query').val(row.data()['name']);
+            $('#parameter').val(detectParams(row.data()['sql']));
+            $('#owner').text('Query String (Owner: ' + row.data()['created_by'] + ')');
+
+            selected_query_id = row.data()['id']
+
+            $("#target_server").empty();
+			$.each(row.data()['databases'], function (idx, obj) {
+				if (selected_target_server == obj.id) {
+					$("#target_server").append('<option value="' + obj.id + '" selected>' + obj.name +' ('+ obj.server +'/'+obj.database +')' + '</option>');
+				}else{
+					$("#target_server").append('<option value="' + obj.id + '" >' + obj.name +' ('+ obj.server +'/'+obj.database +')' + '</option>');
+				}
+			});
+			if (row.data()['is_favorite'] == 0){
+				$('#is_favorite').prop('checked', false);
+				$('#img_no_fav').show()
+				$('#img_fav').hide()
+
+			}else{
+				$('#is_favorite').prop('checked', true);
+				$('#img_no_fav').hide()
+				$('#img_fav').show()
+			}
+
+			if (row.data()['locked'] == 'False'){
+				$('#img_unlocked').show()
+				$('#img_locked').hide()
+			}else{
+				$('#img_unlocked').hide()
+				$('#img_locked').show()
+			}
+
+			if (row.data()['is_owner']){
+			    $('#update_query').show()
+			}else{
+			    $('#update_query').hide()
+			}
+
+<!--			var patt = new RegExp(/.*(delete |update ).*/gi);-->
+<!--			var is_ud = patt.test(row.data()['sql'])-->
+
+<!--			$("#execute_query").prop('disabled', is_ud)-->
+
+		});
+
+		$('#rel_content tbody').on( 'click', 'tr', function () {
+			if ( $(this).hasClass('selected') ) {
+<!--				$(this).removeClass('selected');-->
+			}
+			else {
+				query_result_table.$('tr.selected').removeClass('selected');
+				$(this).addClass('selected');
+			}
+    	} );
+
+	}
+
+	$('#edit_query').click(function() {
+		if(selected_query_id != '') {
+			window.open("{% url 'edit' %}?id=" + selected_query_id);
+		}
+	});
+
+	$("#is_favorite").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+			if(selected_query_id == '') {
+				return;
+			}
+			$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+			$.ajax({
+			type: "POST",
+			url:  api_endpoint + "sync_favorite/",
+			//headers:  {"X-CSRFToken": event.data.csrf_token},
+			data:  {"query_script_id": selected_query_id, 'is_favorite': $('#is_favorite').is(':checked'), 'login_user':'{{login_user}}'},
+				success: function(data) {
+				    $.unblockUI()
+				    if(selected_row != null){
+				    	selected_row.data()['is_favorite'] = $('#is_favorite').is(':checked')
+				    	if($('#is_favorite').is(':checked')){
+				    		$('#img_no_fav').hide()
+							$('#img_fav').show()
+						}else{
+							$('#img_no_fav').show()
+							$('#img_fav').hide()
+						}
+				    }
+				},
+				error: function(data) {
+				    $.unblockUI()
+				    alert('Sync favorite failed')
+					if($('#is_favorite').is(':checked')){
+						$('#is_favorite').prop('checked', true);
+					}else{
+						$('#is_favorite').prop('checked', false);
+					}
+				}
+			});
+		});
+
+
+    function get_execution_parameter(){
+        var my_view_model = {'query_id': '', 'db_id': '', 'params': {}, 'validate_result': true};
+			var my_db_id = $('#target_server').val();
+			var my_params_str = $('#parameter').val();
+			var my_query_script = $('#query_script').val();
+			selected_target_server = my_db_id
+
+			if(selected_query_id == '') {
+				show_error_dialog('Please select one query at least!');
+				my_view_model['validate_result'] = false;
+			} else {
+				my_view_model['query_id'] = selected_query_id;
+			}
+
+			if(my_db_id == null) {
+				show_error_dialog('Please select one target server!');
+				my_view_model['validate_result'] = false;
+			} else {
+				my_view_model['db_id'] = my_db_id;
+				my_view_model['query_script'] = my_query_script;
+			}
+			my_view_model['affect_allow_max_row'] = 10;
+			my_view_model['login_user'] = "{{login_user}}";
+
+			if(!jQuery.isEmptyObject(selected_params)) {
+				if(isJson(my_params_str)) {
+					var my_params_data = {}
+					var diff_arr = []
+					var org_param_arr = []
+					var runtime_param_arr = []
+					var my_params = eval('(' + my_params_str + ')');
+					for(var k in selected_params){
+						org_param_arr.push(k);
+					}
+					for(var p in my_params) {
+						for(var q in selected_params){
+							if((q).toString().toLowerCase()===(p).toString().toLowerCase()){
+								my_params_data[q] = my_params[p];
+								runtime_param_arr.push(q);
+							}
+						}
+					}
+					diff_arr = getArrDiff(org_param_arr, runtime_param_arr);
+					if(diff_arr.length == 0){
+						my_view_model['params'] = my_params_data
+					} else {
+						show_error_dialog('Missing parameters: [' + diff_arr.toString() +']');
+						my_view_model['validate_result'] = false;
+					}
+				} else {
+					show_error_dialog('Parameters is not JSON format!');
+					my_view_model['validate_result'] = false;
+				}
+			}
+
+        <!-- Allow commit update/delete		-->
+		my_view_model['is_allow'] = is_allow_commit;
+		return my_view_model
+    }
+
+    $("#commit_update_or_delete").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+		    is_allow_commit = true;
+            $("#execute_query").click();
+		});
+
+	$("#execute_query").on('click', {
+			csrf_token : "{{ csrf_token }}"
+		}, function(event) {
+            var my_view_model = get_execution_parameter()
+            if (!my_view_model['validate_result']){
+                return
+            }
+
+			var data = JSON.stringify(my_view_model);
+
+			$.blockUI({message: '<h1><img style="width:120px; height:120px" src="{% static 'images/ajax-loading.gif'%}" /></h1>' });
+
+			$.ajax({
+			type: "Post",
+			url:  api_endpoint + "debug_query/",
+			//headers:  {"X-CSRFToken": event.data.csrf_token},
+			data:  {"my_json_data": data},
+				success: function(data) {
+				    $.unblockUI()
+				    if(data['success'] == true) {
+				        if(data['session'] == null){
+                            if(data['error'] == null || data['error'] == '') {
+                                $('#db_info').text(data['db_info'])
+                                present_exec_result_table(data['data']);
+                            } else {
+                                $('#db_info').text(data['db_info'])
+                                show_warning_dialog('Execute Succeeded: ' + data['error']);
+                            }
+				        }else{
+				            var message = "<br>"
+				            var session_detail = data[data['session']]
+				            if ( ! (session_detail['with_where']) ){
+				                message = message + "Current query has no where clause, It's required for every update/delete query." + ".<br>"
+				            }else{
+				                message = message + "There are " + session_detail['affect_row'] + " records will be affected (limitation: " + session_detail['affect_allow_max_row'] + "). <br>"
+				                if(session_detail['affect_row'] > session_detail['affect_allow_max_row']){
+				                    message = message + "The affected record count over the limitation :" + session_detail['affect_allow_max_row'] + ". <br>"
+				                }
+				            }
+				            if(session_detail['affect_row'] > session_detail['affect_allow_max_row'] || !(session_detail['with_where'])){
+				                message = message + "<br>It does not allow to commit."
+                                $('#commit_update_or_delete').hide()
+                                show_error_dialog(message)
+				            }else{
+				                message = message + "<br>Please click commit button to execute the query."
+				                $('#commit_update_or_delete').show()
+				                show_confirm_dialog(message)
+				            }
+
+
+				        }
+				    } else {
+				        show_error_dialog('Execute Failed: ' + data['error']);
+				        $('#db_info').text(data['db_info'])
+				    }
+				    is_allow_commit = false
+				},
+				error: function(data) {
+				    is_allow_commit = false
+				    $.unblockUI()
+					show_error_dialog('Execute Failed: ' + data['error']);
+				}
+			});
+		});
+
+	function present_exec_result_table(data){
+		var tableHeaders='';
+		var columns = []
+		var values = []
+		$.each(data[0], function(key, val){
+			tableHeaders += "<th>" + key + "</th>";
+			columns.push({'title': key})
+		});
+
+		$.each(data, function(i, val_mp){
+			var item = []
+			$.each(val_mp, function(key, val){
+				item.push(val)
+			});
+			values.push(item)
+		});
+
+        $('#result').empty();
+        if (values.length <=0){
+            return;
+        }
+
+        $('#result').append("<table id='exec_result' class='dataTable table-bordered table-responsive-md table-striped'style='width:100%;overflow:auto;'></table>");
+
+		exec_result_table = $('#exec_result').dataTable({
+			data: values,
+			"language": {
+                "search": "_INPUT_",
+                "searchPlaceholder": "Search"
+            },
+			columns: columns,
+			"scrollY": '30vh',
+            "scrollX": true,
+            "bLengthChange": false,
+		});
+	}
+
+
+	function show_confirm_dialog(message) {
+		$('#confirm_message').html('<p>'+ message +'</p>');
+		$('#update_delete_confirm_dialog').modal();
+	}
+
+	function show_error_dialog(message) {
+		$('#error_message').html('<p>'+ message +'</p>');
+		$('#error_dialog').modal();
+	}
+
+	function show_warning_dialog(message) {
+		$('#warning_message').html('<p>'+ message +'</p>');
+		$('#warning_dialog').modal();
+	}
+
+	function isJson(str) {
+    	try {
+        	JSON.parse(str);
+    	} catch (e) {
+        	return false;
+    	}
+    	return true;
+	}
+
+	function detectParams(str) {
+	    var params_reg = /%{[A-Za-z0-9_-]+}/gm;
+	    var result = {};
+	    if(str != null && str != '') {
+	        var params = [];
+	        var res = str.match(params_reg);
+	        while(res = params_reg.exec(str))
+            {
+                params.push(res[0]);
+            }
+	        if (params != null) {
+	            var i = 0
+	            var key_patt = /[A-Za-z0-9_-]+/;
+	            for (i = 0; i < params.length; i++) {
+                    var key = key_patt.exec(params[i]);
+                    if(key != null) {
+                        result[key] = "";
+                    }
+                }
+                selected_params = result
+	        }
+	    }
+	    return JSON.stringify(result);
+	}
+
+	function getArrDiff(arr1, arr2) {
+        return arr1.concat(arr2).filter(function(v, i, arr) {
+            return arr.indexOf(v) === arr.lastIndexOf(v);
+        });
+    }
+
+</script>
+
+
+{% endblock %}
+
+{% block title %}Welcome Query View Site{% endblock %}
+
+{% block container_block %}
+    <div class="page-container">
+        <div class="container-fluid">
+            <div class="row bordered" >
+                <div class="col-sm-1 "> <strong style="padding-right:20px">Show Queries</strong></div>
+                <div class="col-sm-10 btn-group">
+                     <div class="row">
+                         <div class="col-sm-1 "><button type="button" class="btn" style="width:100px" onclick="my_queries()">My</button></div>
+                         <div class="col-sm-1 "><button type="button" class="btn" style="width:100px" onclick="favorite_queries()">Favorites</button></div>
+                         <div class="col-sm-1 "><button type="button" class="btn" style="width:100px;">
+                             <a class="nav-link" href="{% url 'register' %}" target="_blank">Register</a></button></div>
+                     </div>
+                    <div class="col-sm-1 help_lnk" style="float: right; text-align: right;"><a class="nav-link" href="https://wiki.nextestate.com/display/QAAR/Query+Finder+Tool" target="_blank">Help</a></div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="page-container">
+        <div class="panel-container-vertical">
+            <div class="panel-top">
+                 <div class="panel-container" >
+                    <div class="panel-left">
+                        <div class="container-fluid" style="overflow:auto;">
+                            <div class="row" >
+                              <div class="col-sm-10"><input class="form-control" type="search" placeholder="Search Query" name="sc_condition" id="search_condition" onkeydown="search()"></div>
+                              <div class="col-sm-2"><button type="button" class="btn btn-primary btn-sm" id="search_btn" onclick="search_queries()" >Search</button></div>
+                            </div>
+
+                            <br>
+                            <div class="row">
+                                <div id="query_result" class="dataTables_wrapper no-footer" style="width:100%;">
+                                  <table id="rel_content" class="dataTable table-bordered table-responsive-md table-striped "
+                                               style="width:100%;overflow:auto;">
+
+                                  </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="splitter"></div>
+                    <div class="panel-right" >
+                        <div class="container-fluid" >
+                            <div class="row ">
+                                <div class="container-fluid">
+                                    <div class="row ">
+                                        <div class="col-sm-2"><label for="query_script">Query Executor:</label></div>
+                                        <div class="col-sm-9 form-group"><input class="form-control" type="text" id="selected_query" readonly></div>
+                                        <div class="col-sm-1">
+                                            <img id="img_no_fav" src="{% static 'images/heart_gray.png' %}" width="20" height="20" title="Add query to your favorites" align="right"/>
+                                            <img id="img_fav" src="{% static 'images/heart_red.png' %}" width="20" height="20" title="Remove query from your favorites" align="right"/>
+                                        </div>
+                                    </div>
+                                    <label for="query_desc">Description:</label>
+                                    <textarea class="form-control" rows="2" id="query_desc" readonly></textarea>
+<!--                                    <div class="row ">-->
+                                        <label  for="query_script" id="owner">Query String</label>
+                                        <button id="update_query" type="submit" class="btn btn-primary btn-sm" onclick="update_query()">Save</button>
+<!--                                    </div>-->
+                                    <textarea class="form-control" rows="9" id="query_script"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="row ">
+                                <div class="col-sm-4">
+                                    <div class="form-group">
+                                        <label for="target_server"><h6>Target Server:</h6></label>
+                                      <select class="form-control" id="target_server">
+                                      </select>
+                                    </div>
+                                    <div class="row ">
+                                        <span class="col-sm-1"></span>
+                                        <button id="execute_query" type="submit" class="col-sm-4 btn btn-primary btn-sm" >Execute</button>
+                                        <span class="col-sm-1"></span>
+                                        <button id="edit_query" type="submit" class="col-sm-4 btn btn-primary btn-sm" target="_blank">Edit</button>
+                                    </div>
+
+                                </div>
+                                <div class="col-sm-8">
+                                    <label for="parameter">Input Parameter With Json Format:</label>
+                                    <textarea class="form-control" rows="3" id="parameter" placeholder="{'name':'value1','name2':'value2'}">{}</textarea>
+                                    <input type="checkbox" id="is_favorite" name="is_favorite" hidden>
+                                    <img id="img_unlocked" src="{% static 'images/unlocked.png' %}" width="20" height="20" title="Query is not used by tests" align="right"/>
+                                    <img id="img_locked" src="{% static 'images/locked.png' %}" width="20" height="20" title="Query was used by tests align" align="right"/>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="splitter-horizontal"></div>
+            <div class="panel-bottom bordered">
+                <div class="container-fluid ">
+                     <div  class="container-fluid" style="height:30px"><label><h6>Query Results:</h6></label> <label id="db_info" style="padding-left:10px"></label></div>
+                     <div id="result" class="container-fluid dataTables_wrapper no-footer">
+                         <table id="exec_result" class="dataTable table-bordered table-responsive-md table-striped"
+                                           style="width:100%;overflow:auto;">
+                          </table>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+    </div>
+
+<!-- Modal -->
+<div class="modal" role="dialog" tabindex="-1" id="error_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h6 class="modal-title">Error Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-danger">
+  					<h6 id="error_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<!-- Modal -->
+<div class="modal" role="dialog" tabindex="-1" id="update_delete_confirm_dialog" >
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Update/Delete Confirm Dialog</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+			</div>
+			<div class="modal-body" class="panel">
+                <div class="alert alert-success">
+  					<h6 id="confirm_message"></h6>
+                </div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal" id="cancel_update_or_delete">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" data-dismiss="modal" id="commit_update_or_delete">Commit</button>
+
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<div class="modal" role="dialog" tabindex="-1" id="warning_dialog" data-backdrop="static">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+                <h6 class="modal-title">Warning Dialog</h6>
+				<button type="button" class="close" data-dismiss="modal">&times;</button>
+			</div>
+			<div class="modal-body" class="panel panel-danger">
+				<div class="alert alert-warning">
+  					<strong>Warning!</strong>
+  					<h6 id="warning_message"></h6>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+<!--     Magical thing for autocomplete  -->
+    <iframe name="hidden_frame" style="display:none" src="about:blank"></iframe>
+    <div id="hidden_section" style="display: block; line-height:0; height: 0; overflow: hidden;">
+        <form id="hidden_form" target="hidden_frame" action="about:blank" >
+            <input type="text" name="sc_condition" />
+            <input type="submit" />
+        </form>
+    </div>
+
+{% endblock %}
+
+
+
+
+
+
